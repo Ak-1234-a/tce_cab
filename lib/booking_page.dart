@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'view_bookings_page.dart';
+import 'calendar_page.dart';
 
 class BookingPage extends StatefulWidget {
   final String facultyName;
@@ -87,16 +89,86 @@ class _BookingPageState extends State<BookingPage> {
                 ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.list),
-              title: const Text('View My Bookings'),
-              onTap: () {},
+           ListTile(
+             leading: const Icon(Icons.list),
+             title: const Text('View My Bookings'),
+             onTap: () {
+     // Example booking data
+            final sampleBookings = [
+  {
+    'eventName': 'Tech Symposium',
+    'resourcePerson': 'Dr. Kumar',
+    'facility': 'Car',
+    'pickupLocation': 'Campus Main Gate',
+    'dropLocation': 'TCE Auditorium',
+    'pickupDate': '18/07/2025',
+    'pickupTime': '09:00 AM',
+    'dropDate': '18/07/2025',
+    'dropTime': '06:00 PM',
+    'numberOfPersons': '5',
+    'status': 'Rejected',
+    'rejectionReason': 'Vehicle not available on selected date.',
+  },
+  {
+    'eventName': 'Research Workshop',
+    'resourcePerson': 'Prof. Meena',
+    'facility': 'Van',
+    'pickupLocation': 'Hostel Block',
+    'dropLocation': 'Library',
+    'pickupDate': '20/07/2025',
+    'pickupTime': '08:00 AM',
+    'dropDate': '20/07/2025',
+    'dropTime': '04:00 PM',
+    'numberOfPersons': '15',
+    'status': 'Accepted',
+  },
+];
+
+
+          Navigator.pop(context);
+          Navigator.push(
+          context,
+            MaterialPageRoute(
+             builder: (context) =>
+            ViewBookingsPage(bookings: sampleBookings),
             ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('View Calendar'),
-              onTap: () {},
-            ),
+          );
+         },
+         ),
+
+           ListTile(
+  leading: const Icon(Icons.calendar_month),
+  title: const Text('View Calendar'),
+  onTap: () {
+    final events = {
+      DateTime(2025, 7, 15): [
+        {
+          'eventName': 'Science Symposium',
+          'facility': 'Van',
+          'pickupLocation': 'Main Gate',
+          'pickupTime': '09:00 AM',
+        },
+      ],
+      DateTime(2025, 7, 10): [
+        {
+          'eventName': 'Workshop',
+          'facility': 'Car',
+          'pickupLocation': 'Hostel Block',
+          'pickupTime': '08:30 AM',
+        }
+      ],
+    };
+
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CalendarPage(events: events),
+      ),
+    );
+  },
+),
+
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
