@@ -42,12 +42,12 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
       final storedPassword = data['password'];
 
       if (password == storedPassword) {
-        final facultyName = data['name'] ?? email;
+        final facultyEmail = data['email'] ?? email;
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => BookingPage(facultyName: facultyName),
+            builder: (context) => BookingPage(facultyEmail: facultyEmail),
           ),
         );
       } else {
