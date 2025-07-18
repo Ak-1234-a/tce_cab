@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1061688931027",
+    "project_id": "tce-2027-batch",
+    "storage_bucket": "tce-2027-batch.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1061688931027:android:536fa33b5f5c18c3d81a26",
+        "android_client_info": {
+          "package_name": "com.example.tce_cab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR_1nlxhOmHE1brS4zlWwAOIYPkig-rYM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

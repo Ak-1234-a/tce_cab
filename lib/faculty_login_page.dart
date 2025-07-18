@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-// Add import
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'booking_page.dart';
-
-
-
+import 'faculty_register_page.dart';
 
 class FacultyLoginPage extends StatefulWidget {
   const FacultyLoginPage({super.key});
@@ -16,131 +14,160 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _obscureText = true;
 
- void _submitLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const BookingPage(facultyName: 'Dr. Ravi'),
-      ),
-    );
-}
+  bool _isLoading = false;
+
+  Future<void> _loginFaculty() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('faculty_logins')
+          .doc(email)
+          .get();
+
+      if (!doc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No faculty found for that email')),
+        );
+        return;
+      }
+
+      final data = doc.data()!;
+      final storedPassword = data['password'];
+
+      if (password == storedPassword) {
+        final facultyName = data['name'] ?? email;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookingPage(facultyName: facultyName),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Incorrect password')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login error: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.blue.shade50,
       appBar: AppBar(
         title: const Text('Faculty Login'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      backgroundColor: Colors.blue.shade50,
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              const CircleAvatar(
-                radius: 40,
-                backgroundImage: AssetImage('assets/TCE.png'),
-              ),
-              const SizedBox(height: 24),
-
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                    return 'Enter a valid email address';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscureText,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: const Icon(Icons.lock),
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                        _obscureText ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () {
-                      setState(() {
-                        _obscureText = !_obscureText;
-                      });
-                    },
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  if (value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    // TODO: Forgot password logic
-                  },
-                  child: const Text('Forgot Password?'),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _submitLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+        child: Center(
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
                 children: [
-                  const Text("Don't have an account?"),
+                  const CircleAvatar(
+                    radius: 50,
+                    backgroundImage: AssetImage('assets/TCE.png'),
+                  ),
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Faculty Login',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                        ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Email field
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'Enter email' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Password field
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                    validator: (value) =>
+                        value!.isEmpty ? 'Enter password' : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _loginFaculty,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              'Login',
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.white),
+                            ),
+                          ),
+                        ),
+
+                  const SizedBox(height: 16),
+
                   TextButton(
                     onPressed: () {
-                      // TODO: Navigate to Create Account
+                      // Implement forgot password flow (manual or form)
                     },
-                    child: const Text('Create one'),
-                  )
+                    child: const Text('Forgot Password?'),
+                  ),
+
+             TextButton(
+               onPressed: () {
+          Navigator.push(
+           context,
+          MaterialPageRoute(
+         builder: (context) => const FacultyRegisterPage(),
+         ),
+       );
+     },
+      child: const Text('Create an Account'),
+   ),
+
+
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),
