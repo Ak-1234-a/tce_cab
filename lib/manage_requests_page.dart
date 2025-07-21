@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ManageRequestsPage extends StatelessWidget {
   const ManageRequestsPage({super.key});
@@ -19,7 +20,12 @@ class ManageRequestsPage extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No pending requests.'));
+            return Center(
+              child: Text(
+                'No pending requests.',
+                style: GoogleFonts.poppins(fontSize: 16),
+              ),
+            );
           }
 
           final docs = snapshot.data!.docs;
@@ -27,7 +33,7 @@ class ManageRequestsPage extends StatelessWidget {
           const List<String> priorityOrder = [
             'principal@tce.edu',
             'hod@tce.edu',
-            'deanacad@tce.edu'
+            'deanacad@tce.edu',
           ];
 
           docs.sort((a, b) {
@@ -58,98 +64,86 @@ class ManageRequestsPage extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Card(
-                  elevation: 4,
+                  color: Colors.white,
+                  elevation: 6,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
+                  shadowColor: Colors.blue.shade100,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           data['eventName'] ?? 'Untitled Event',
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[900],
+                          ),
                         ),
+                        const SizedBox(height: 12),
+                        _infoRow(Icons.calendar_month, 'Pickup:',
+                            '${data['pickupDate']} at ${data['pickupTime']} from ${data['pickupLocation']}'),
+                        const SizedBox(height: 6),
+                        _infoRow(Icons.place, 'Drop:',
+                            '${data['dropDate']} at ${data['dropTime']} to ${data['dropLocation']}'),
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_today,
-                                size: 16, color: Colors.grey),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Pickup: ${data['pickupDate']} at ${data['pickupTime']} from ${data['pickupLocation']}',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on,
-                                size: 16, color: Colors.grey),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Drop: ${data['dropDate']} at ${data['dropTime']} to ${data['dropLocation']}',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Persons: ${data['numberOfPersons']} | Facility: ${data['facility']}',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          'Resource Person: ${data['resourcePerson']}',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          'Forwarded Through: ${data['forwardThrough']}',
-                          style: const TextStyle(fontSize: 13, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Requested by: ${data['facultyEmail']}',
-                          style: const TextStyle(fontSize: 13, color: Colors.grey),
-                        ),
+                        _infoRow(Icons.people, 'Persons:',
+                            '${data['numberOfPersons']}'),
+                        _infoRow(Icons.school, 'Facility:',
+                            data['facility'] ?? ''),
+                        _infoRow(Icons.person, 'Resource Person:',
+                            data['resourcePerson'] ?? ''),
+                        _infoRow(Icons.forward, 'Forwarded Through:',
+                            data['forwardThrough'] ?? ''),
+                        _infoRow(Icons.email, 'Requested by:',
+                            data['facultyEmail'] ?? ''),
                         const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                icon: const Icon(Icons.check),
+                                icon: const Icon(Icons.check_circle_outline),
                                 onPressed: () => _acceptRequest(context, doc.id),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  backgroundColor: Colors.green.shade600,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                label: const Text('Accept'),
+                                label: Text(
+                                  'Accept',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: OutlinedButton.icon(
-                                icon: const Icon(Icons.close, color: Colors.red),
-                                onPressed: () => _denyRequest(context, doc.id),
+                                icon: const Icon(Icons.cancel_outlined,
+                                    color: Colors.red),
+                                onPressed: () =>
+                                    _denyRequest(context, doc.id),
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(color: Colors.red),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                label: const Text(
+                                label: Text(
                                   'Reject',
-                                  style: TextStyle(color: Colors.red),
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
@@ -164,6 +158,37 @@ class ManageRequestsPage extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.blueGrey),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              text: '$label ',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              children: [
+                TextSpan(
+                  text: value,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.normal,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
