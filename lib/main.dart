@@ -3,6 +3,7 @@ import 'faculty_login_page.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'manager_login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,9 +13,9 @@ void main() async {
 
   try {
     final snapshot = await FirebaseFirestore.instance.collection('test').get();
-    debugPrint("✅ Firestore connected. Docs found: ${snapshot.docs.length}");
+    debugPrint("Firestore connected. Docs found: ${snapshot.docs.length}");
   } catch (e) {
-    debugPrint("❌ Firestore test error: $e");
+    debugPrint("Firestore test error: $e");
   }
 
   runApp(const MyApp());
@@ -84,6 +85,10 @@ class LoginPage extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     // Navigate to Manager login
+Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ManagerLoginPage()),
+    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
