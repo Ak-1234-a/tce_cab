@@ -13,20 +13,60 @@ class ViewBookingsPage extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: Text(
           'Rejection Reason',
-          style: GoogleFonts.openSans(
+          style: GoogleFonts.roboto(
             fontWeight: FontWeight.bold,
             color: Colors.blue.shade800,
           ),
         ),
         content: Text(
           reason,
-          style: GoogleFonts.openSans(color: Colors.black87),
+          style: GoogleFonts.roboto(color: Colors.black87),
         ),
         actions: [
           TextButton(
             child: Text(
               'Close',
-              style: GoogleFonts.openSans(color: Colors.blue.shade800),
+              style: GoogleFonts.roboto(color: Colors.blue.shade800),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDriverDetailsDialog(
+      BuildContext context, String driverName, String driverPhone) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Driver Details',
+          style: GoogleFonts.roboto(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade800,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Name: $driverName',
+              style: GoogleFonts.roboto(color: Colors.blue.shade900, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Phone: $driverPhone',
+              style: GoogleFonts.roboto(color: Colors.blue.shade900, fontSize: 16),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: Text(
+              'Close',
+              style: GoogleFonts.roboto(color: Colors.blue.shade800),
             ),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
@@ -47,7 +87,7 @@ class ViewBookingsPage extends StatelessWidget {
             child: RichText(
               text: TextSpan(
                 text: '$label: ',
-                style: GoogleFonts.openSans(
+                style: GoogleFonts.roboto(
                   fontWeight: FontWeight.w600,
                   color: Colors.blue.shade900,
                   fontSize: 14,
@@ -55,7 +95,7 @@ class ViewBookingsPage extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: value,
-                    style: GoogleFonts.openSans(
+                    style: GoogleFonts.roboto(
                       fontWeight: FontWeight.normal,
                       color: Colors.blue.shade800,
                       fontSize: 14,
@@ -89,14 +129,14 @@ class ViewBookingsPage extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           'Status: ',
-          style: GoogleFonts.openSans(
+          style: GoogleFonts.roboto(
             fontWeight: FontWeight.w600,
             color: Colors.blue.shade900,
           ),
         ),
         Text(
           status,
-          style: GoogleFonts.openSans(
+          style: GoogleFonts.roboto(
             color: statusColor,
             fontWeight: FontWeight.bold,
           ),
@@ -109,7 +149,7 @@ class ViewBookingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('My Bookings', style: GoogleFonts.openSans(color: Colors.white)),
+        title: Text('My Bookings', style: GoogleFonts.roboto(color: Colors.white)),
         backgroundColor: Colors.blue.shade800,
       ),
       backgroundColor: Colors.blue.shade50,
@@ -122,7 +162,7 @@ class ViewBookingsPage extends StatelessWidget {
         builder: (ctx, snapshot) {
           if (snapshot.hasError) {
             return Center(
-              child: Text('Error loading bookings', style: GoogleFonts.openSans()),
+              child: Text('Error loading bookings', style: GoogleFonts.roboto()),
             );
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -132,7 +172,7 @@ class ViewBookingsPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
           if (docs.isEmpty) {
             return Center(
-              child: Text('No bookings found', style: GoogleFonts.openSans(fontSize: 18)),
+              child: Text('No bookings found', style: GoogleFonts.roboto(fontSize: 18)),
             );
           }
 
@@ -144,6 +184,8 @@ class ViewBookingsPage extends StatelessWidget {
 
               final status = (data['status'] ?? '').toString();
               final rejectionReason = (data['rejectionReason'] ?? '').toString();
+              final driverName = (data['driverName'] ?? '').toString();
+              final driverPhone = (data['driverPhone'] ?? '').toString();
 
               return Card(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -156,8 +198,9 @@ class ViewBookingsPage extends StatelessWidget {
                     children: [
                       Text(
                         data['eventName'] ?? 'No Event Name',
-                        style: GoogleFonts.lobster(
+                        style: GoogleFonts.roboto(
                           fontSize: 22,
+                          fontWeight: FontWeight.w700,
                           color: Colors.blue.shade900,
                         ),
                       ),
@@ -181,7 +224,7 @@ class ViewBookingsPage extends StatelessWidget {
                         const SizedBox(height: 8),
                         Text(
                           'Wait for manager to approve',
-                          style: GoogleFonts.openSans(
+                          style: GoogleFonts.roboto(
                             fontSize: 14,
                             color: Colors.orange.shade800,
                             fontWeight: FontWeight.w600,
@@ -198,13 +241,39 @@ class ViewBookingsPage extends StatelessWidget {
                             icon: const Icon(Icons.cancel, color: Colors.white),
                             label: Text(
                               'View Rejection Reason',
-                              style: GoogleFonts.openSans(
+                              style: GoogleFonts.roboto(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red.shade600,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // Show driver details button only if status is accepted
+                      if (status.toLowerCase() == 'accepted' && driverName.isNotEmpty && driverPhone.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showDriverDetailsDialog(context, driverName, driverPhone),
+                            icon: const Icon(Icons.drive_eta, color: Colors.white),
+                            label: Text(
+                              'View Driver Details',
+                              style: GoogleFonts.roboto(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade700,
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
