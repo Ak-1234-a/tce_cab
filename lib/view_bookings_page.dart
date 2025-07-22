@@ -11,11 +11,23 @@ class ViewBookingsPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Rejection Reason', style: GoogleFonts.openSans(fontWeight: FontWeight.bold)),
-        content: Text(reason, style: GoogleFonts.openSans()),
+        title: Text(
+          'Rejection Reason',
+          style: GoogleFonts.openSans(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade800,
+          ),
+        ),
+        content: Text(
+          reason,
+          style: GoogleFonts.openSans(color: Colors.black87),
+        ),
         actions: [
           TextButton(
-            child: Text('Close', style: GoogleFonts.openSans(color: Colors.blue.shade700)),
+            child: Text(
+              'Close',
+              style: GoogleFonts.openSans(color: Colors.blue.shade800),
+            ),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
@@ -27,24 +39,69 @@ class ViewBookingsPage extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: Colors.blue.shade700, size: 20),
           const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: GoogleFonts.openSans(
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade900,
-            ),
-          ),
           Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.openSans(color: Colors.blue.shade800),
+            child: RichText(
+              text: TextSpan(
+                text: '$label: ',
+                style: GoogleFonts.openSans(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade900,
+                  fontSize: 14,
+                ),
+                children: [
+                  TextSpan(
+                    text: value,
+                    style: GoogleFonts.openSans(
+                      fontWeight: FontWeight.normal,
+                      color: Colors.blue.shade800,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatusRow(String status) {
+    Color statusColor;
+    switch (status.toLowerCase()) {
+      case 'pending':
+        statusColor = Colors.orange.shade700;
+        break;
+      case 'rejected':
+        statusColor = Colors.red.shade700;
+        break;
+      default:
+        statusColor = Colors.green.shade700;
+    }
+
+    return Row(
+      children: [
+        const Icon(Icons.info_outline, color: Colors.blue),
+        const SizedBox(width: 8),
+        Text(
+          'Status: ',
+          style: GoogleFonts.openSans(
+            fontWeight: FontWeight.w600,
+            color: Colors.blue.shade900,
+          ),
+        ),
+        Text(
+          status,
+          style: GoogleFonts.openSans(
+            color: statusColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 
@@ -89,8 +146,7 @@ class ViewBookingsPage extends StatelessWidget {
               final rejectionReason = (data['rejectionReason'] ?? '').toString();
 
               return Card(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 4,
                 margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                 child: Padding(
@@ -103,7 +159,6 @@ class ViewBookingsPage extends StatelessWidget {
                         style: GoogleFonts.lobster(
                           fontSize: 22,
                           color: Colors.blue.shade900,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -120,33 +175,9 @@ class ViewBookingsPage extends StatelessWidget {
                       _buildDetailRow(Icons.people, 'Number of Persons', data['numberOfPersons'] ?? ''),
 
                       const SizedBox(height: 12),
+                      _buildStatusRow(status),
 
-                      Row(
-                        children: [
-                          const Icon(Icons.info_outline, color: Colors.blue),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Status: ',
-                            style: GoogleFonts.openSans(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade900,
-                            ),
-                          ),
-                          Text(
-                            status,
-                            style: GoogleFonts.openSans(
-                              color: status == 'Pending'
-                                  ? Colors.orange.shade700
-                                  : (status == 'Rejected'
-                                      ? Colors.red.shade700
-                                      : Colors.green.shade700),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      if (status == 'Pending') ...[
+                      if (status.toLowerCase() == 'pending') ...[
                         const SizedBox(height: 8),
                         Text(
                           'Wait for manager to approve',
@@ -158,26 +189,27 @@ class ViewBookingsPage extends StatelessWidget {
                         ),
                       ],
 
-                      if (status == 'Rejected' && rejectionReason.isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                      if (status.toLowerCase() == 'rejected' && rejectionReason.isNotEmpty) ...[
+                        const SizedBox(height: 12),
                         Align(
                           alignment: Alignment.centerRight,
                           child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.shade600,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
+                            onPressed: () => _showRejectionDialog(context, rejectionReason),
                             icon: const Icon(Icons.cancel, color: Colors.white),
                             label: Text(
                               'View Rejection Reason',
                               style: GoogleFonts.openSans(
-                                color: Colors.white,
                                 fontWeight: FontWeight.w600,
+                                color: Colors.white,
                               ),
                             ),
-                            onPressed: () => _showRejectionDialog(context, rejectionReason),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red.shade600,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
                           ),
                         ),
                       ],
