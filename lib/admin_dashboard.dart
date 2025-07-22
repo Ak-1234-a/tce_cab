@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'manage_requests_page.dart';
+import 'view_history_page.dart'; // <-- Import the new page
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -31,18 +32,17 @@ class AdminDashboardPage extends StatelessWidget {
               ),
             ],
           ),
-          bottom: TabBar(
-           indicatorColor: Colors.white,
-         labelColor: Colors.white,
-           unselectedLabelColor: Colors.white70,
-           labelStyle: const TextStyle(
+          bottom: const TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: TextStyle(
               fontWeight: FontWeight.bold,
-           ),
-          tabs: const [
-               Tab(text: 'Manage Requests'),
-             ],
+            ),
+            tabs: [
+              Tab(text: 'Manage Requests'),
+            ],
           ),
-
         ),
         drawer: Drawer(
           backgroundColor: Colors.white,
@@ -55,7 +55,7 @@ class AdminDashboardPage extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       backgroundImage: AssetImage('assets/TCE.png'),
                       radius: 30,
                     ),
@@ -77,7 +77,13 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.history,
                 label: 'View History',
                 onTap: () {
-                  // Navigate to View History Page
+                  Navigator.pop(context); // Close the drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ViewHistoryPage(),
+                    ),
+                  );
                 },
               ),
               _buildDrawerItem(
