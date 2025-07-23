@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'manage_requests_page.dart';
 import 'view_history_page.dart';
 import 'drivers_page.dart'; // <-- Import the Drivers Page
+import 'report_schedule_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -111,7 +112,13 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.bar_chart,
                 label: 'Generate Report',
                 onTap: () {
-                  // Navigate to Generate Report Page
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ReportSchedulePage(),
+                    ),
+                  );
                 },
               ),
               const Divider(),

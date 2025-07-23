@@ -27,6 +27,9 @@ dependencies:
   firebase_core: ^3.15.1
   cloud_firestore: ^5.6.11
   google_fonts: ^6.1.0
+  pdf: ^3.10.4
+  printing: ^5.10.4
+  workmanager: ^0.5.0
 
 
 
