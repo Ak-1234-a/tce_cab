@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'manage_requests_page.dart';
-import 'view_history_page.dart'; // <-- Import the new page
+import 'view_history_page.dart';
+import 'drivers_page.dart'; // <-- Import the Drivers Page
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -90,7 +91,20 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.directions_car,
                 label: 'Drivers',
                 onTap: () {
-                  // Navigate to Drivers Page
+                  Navigator.pop(context); // Close the drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DriversPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildDrawerItem(
+                icon: Icons.directions_bus,
+                label: 'Vehicles',
+                onTap: () {
+                  // No action for now
                 },
               ),
               _buildDrawerItem(
