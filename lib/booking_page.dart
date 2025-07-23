@@ -16,9 +16,9 @@ class BookingPage extends StatefulWidget {
 class _BookingPageState extends State<BookingPage> {
   final _eventNameController = TextEditingController();
   final _resourcePersonController = TextEditingController();
-  final _forwardThroughController = TextEditingController();
   final _pickupLocationController = TextEditingController();
   final _dropLocationController = TextEditingController();
+  final _departmentController = TextEditingController();
 
   String? _selectedFacility;
   String? _selectedPersons;
@@ -37,9 +37,9 @@ class _BookingPageState extends State<BookingPage> {
   void dispose() {
     _eventNameController.dispose();
     _resourcePersonController.dispose();
-    _forwardThroughController.dispose();
     _pickupLocationController.dispose();
     _dropLocationController.dispose();
+    _departmentController.dispose();
     super.dispose();
   }
 
@@ -85,9 +85,9 @@ class _BookingPageState extends State<BookingPage> {
     if (_selectedFacility == null ||
         _eventNameController.text.isEmpty ||
         _resourcePersonController.text.isEmpty ||
-        _forwardThroughController.text.isEmpty ||
         _pickupLocationController.text.isEmpty ||
         _dropLocationController.text.isEmpty ||
+        _departmentController.text.isEmpty ||
         _pickupDate == null ||
         _pickupTime == null ||
         _dropDate == null ||
@@ -103,10 +103,11 @@ class _BookingPageState extends State<BookingPage> {
       'facultyEmail': widget.facultyEmail,
       'eventName': _eventNameController.text,
       'resourcePerson': _resourcePersonController.text,
-      'forwardThrough': _forwardThroughController.text,
+      'forwardThrough': 'Manager', // always Manager
       'facility': _selectedFacility,
       'pickupLocation': _pickupLocationController.text,
       'dropLocation': _dropLocationController.text,
+      'department': _departmentController.text,
       'pickupDate': _formatDate(_pickupDate),
       'pickupTime': _formatTime(_pickupTime),
       'dropDate': _formatDate(_dropDate),
@@ -132,9 +133,9 @@ class _BookingPageState extends State<BookingPage> {
   void _clearForm() {
     _eventNameController.clear();
     _resourcePersonController.clear();
-    _forwardThroughController.clear();
     _pickupLocationController.clear();
     _dropLocationController.clear();
+    _departmentController.clear();
     setState(() {
       _selectedFacility = null;
       _selectedPersons = null;
@@ -202,14 +203,44 @@ class _BookingPageState extends State<BookingPage> {
                 label: 'Facility',
                 icon: Icons.directions_car,
                 value: _selectedFacility,
-                items: ['Car', 'Van', 'Bus'],
+                items: [
+                  'Car',
+                  'EV Auto',
+                  'Electric EV Buggy',
+                  'Sumo',
+                  'Bus',
+                ],
                 onChanged: (v) => setState(() => _selectedFacility = v),
               ),
               _buildTextField(_eventNameController, 'Event Name', Icons.event),
               _buildTextField(
                   _resourcePersonController, 'Resource Person', Icons.person),
-              _buildTextField(
-                  _forwardThroughController, 'Forward Through', Icons.forward),
+              // Forward Through label (non-editable)
+              Row(
+                children: [
+                  Icon(Icons.forward, color: Colors.blue),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Forward Through:',
+                    style: GoogleFonts.openSans(
+                      color: Colors.blue.shade900,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Manager',
+                    style: GoogleFonts.openSans(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(_departmentController, 'Department', Icons.apartment),
             ]),
             const SizedBox(height: 20),
             _buildCard('Vehicle Booking', [
@@ -226,6 +257,39 @@ class _BookingPageState extends State<BookingPage> {
                 items: List.generate(10, (i) => '${i + 1}'),
                 onChanged: (v) => setState(() => _selectedPersons = v),
               ),
+              const SizedBox(height: 16),
+              if (_pickupDate != null)
+                Text(
+                  'Pickup Date: ${_formatDate(_pickupDate)}',
+                  style: GoogleFonts.openSans(
+                    color: Colors.blue.shade900,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              if (_pickupTime != null)
+                Text(
+                  'Pickup Time: ${_formatTime(_pickupTime)}',
+                  style: GoogleFonts.openSans(
+                    color: Colors.blue.shade900,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              if (_dropDate != null)
+                Text(
+                  'Drop Date: ${_formatDate(_dropDate)}',
+                  style: GoogleFonts.openSans(
+                    color: Colors.blue.shade900,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              if (_dropTime != null)
+                Text(
+                  'Drop Time: ${_formatTime(_dropTime)}',
+                  style: GoogleFonts.openSans(
+                    color: Colors.blue.shade900,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
             ]),
             const SizedBox(height: 30),
             SizedBox(
@@ -372,7 +436,8 @@ class _BookingPageState extends State<BookingPage> {
         border: const OutlineInputBorder(),
       ),
       items: items
-          .map((e) => DropdownMenuItem(value: e, child: Text(e, style: GoogleFonts.openSans())))
+          .map((e) =>
+              DropdownMenuItem(value: e, child: Text(e, style: GoogleFonts.openSans())))
           .toList(),
       onChanged: onChanged,
       style: GoogleFonts.openSans(color: Colors.black),
@@ -390,11 +455,9 @@ class _BookingPageState extends State<BookingPage> {
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.calendar_today, color: Colors.blue),
               labelText: isPickup ? 'Pickup Date' : 'Drop Date',
-              labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
-              hintText: date != null ? _formatDate(date) : 'Select date',
               border: const OutlineInputBorder(),
+              hintText: date != null ? _formatDate(date) : 'Select Date',
             ),
-            style: GoogleFonts.openSans(),
             onTap: () => _selectDate(context, isPickup),
           ),
         ),
@@ -405,11 +468,9 @@ class _BookingPageState extends State<BookingPage> {
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.access_time, color: Colors.blue),
               labelText: isPickup ? 'Pickup Time' : 'Drop Time',
-              labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
-              hintText: time != null ? _formatTime(time) : 'Select time',
               border: const OutlineInputBorder(),
+              hintText: time != null ? _formatTime(time) : 'Select Time',
             ),
-            style: GoogleFonts.openSans(),
             onTap: () => _selectTime(context, isPickup),
           ),
         ),
@@ -418,9 +479,7 @@ class _BookingPageState extends State<BookingPage> {
   }
 }
 
-extension StringExtension on String {
-  String capitalize() {
-    if (isEmpty) return '';
-    return this[0].toUpperCase() + substring(1);
-  }
+extension StringCasingExtension on String {
+  String capitalize() =>
+      isEmpty ? '' : '${this[0].toUpperCase()}${substring(1).toLowerCase()}';
 }
