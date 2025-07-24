@@ -4,6 +4,7 @@ import 'manage_requests_page.dart';
 import 'view_history_page.dart';
 import 'drivers_page.dart'; // <-- Import the Drivers Page
 import 'report_schedule_page.dart';
+import 'vehicles_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -105,7 +106,13 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.directions_bus,
                 label: 'Vehicles',
                 onTap: () {
-                  // No action for now
+                   Navigator.pop(context); // Close drawer
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const VehiclesPage(),
+      ),
+    );
                 },
               ),
               _buildDrawerItem(

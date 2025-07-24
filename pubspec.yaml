@@ -58,6 +58,11 @@ flutter:
   uses-material-design: true
   assets:
     - assets/TCE.png
+    - assets/car.png
+    - assets/ev_auto.png
+    - assets/ev_buggy.png
+    - assets/sumo.png
+    - assets/bus.png
 
 
 
