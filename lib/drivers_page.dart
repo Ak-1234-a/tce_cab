@@ -13,7 +13,6 @@ class _DriversPageState extends State<DriversPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-
   String? editingDocId;
 
   void _showDriverDialog({String? name, String? phone, String? docId}) {
@@ -77,14 +76,12 @@ class _DriversPageState extends State<DriversPage> {
               if (name.isEmpty || phone.isEmpty) return;
 
               if (editingDocId == null) {
-                // Add new driver with isFree: false
                 await _firestore.collection('drivers').add({
                   'name': name,
                   'phone': phone,
                   'isFree': false,
                 });
               } else {
-                // Update existing driver
                 await _firestore.collection('drivers').doc(editingDocId).update({
                   'name': name,
                   'phone': phone,
@@ -108,6 +105,17 @@ class _DriversPageState extends State<DriversPage> {
 
   void _deleteDriver(String docId) {
     _firestore.collection('drivers').doc(docId).delete();
+  }
+
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _getCurrentBooking(String phone) async {
+    final snap = await _firestore
+        .collection('bookings')
+        .where('driverPhone', isEqualTo: phone)
+        .where('status', isEqualTo: 'accepted')
+        .limit(1)
+        .get();
+
+    return snap.docs.isNotEmpty ? snap.docs.first : null;
   }
 
   @override
@@ -153,6 +161,7 @@ class _DriversPageState extends State<DriversPage> {
               final doc = drivers[index];
               final data = doc.data() as Map<String, dynamic>;
               final isFree = data['isFree'] ?? false;
+              final phone = data['phone'] ?? '';
 
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8),
@@ -161,69 +170,141 @@ class _DriversPageState extends State<DriversPage> {
                 color: Colors.white,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.blue.shade100,
-                        child: const Icon(Icons.person, color: Colors.blue, size: 30),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data['name'] ?? '',
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue[900],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              data['phone'] ?? '',
-                              style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey[800]),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.blue.shade100,
+                            child: const Icon(Icons.person, color: Colors.blue, size: 30),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  isFree ? Icons.check_circle : Icons.cancel,
-                                  color: isFree ? Colors.green : Colors.red,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 6),
                                 Text(
-                                  isFree ? 'Available' : 'Occupied',
+                                  data['name'] ?? '',
                                   style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    color: isFree ? Colors.green : Colors.red,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue[900],
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  phone,
+                                  style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey[800]),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isFree ? Icons.check_circle : Icons.cancel,
+                                      color: isFree ? Colors.green : Colors.red,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isFree ? 'Available' : 'Occupied',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: isFree ? Colors.green : Colors.red,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Switch(
+                                      value: isFree,
+                                      onChanged: (val) {
+                                        _firestore.collection('drivers').doc(doc.id).update({
+                                          'isFree': val,
+                                        });
+                                      },
+                                      activeColor: Colors.green,
+                                    ),
+                                  ],
+                                ),
                               ],
-                            )
-                          ],
-                        ),
-                      ),
-                      Column(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _showDriverDialog(
-                              name: data['name'],
-                              phone: data['phone'],
-                              docId: doc.id,
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteDriver(doc.id),
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _showDriverDialog(
+                                  name: data['name'],
+                                  phone: data['phone'],
+                                  docId: doc.id,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteDriver(doc.id),
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                      if (!isFree)
+                        FutureBuilder<QueryDocumentSnapshot<Map<String, dynamic>>?>(
+                          future: _getCurrentBooking(phone),
+                          builder: (context, bSnap) {
+                            if (bSnap.connectionState == ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.only(top: 12),
+                                child: LinearProgressIndicator(),
+                              );
+                            }
+                            final booking = bSnap.data;
+                            if (booking == null) return const SizedBox();
+
+                            final bd = booking.data();
+                            return Container(
+                              margin: const EdgeInsets.only(top: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Current Booking",
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "Event: ${bd['eventName'] ?? 'N/A'}",
+                                    style: GoogleFonts.poppins(fontSize: 14),
+                                  ),
+                                  Text(
+                                    "Drop Date: ${bd['dropDate'] ?? 'N/A'}",
+                                    style: GoogleFonts.poppins(fontSize: 14),
+                                  ),
+                                  Text(
+                                    "Drop Time: ${bd['dropTime'] ?? 'N/A'}",
+                                    style: GoogleFonts.poppins(fontSize: 14),
+                                  ),
+                                  Text(
+                                    "Drop Location: ${bd['dropLocation'] ?? 'N/A'}",
+                                    style: GoogleFonts.poppins(fontSize: 14),
+                                  ),
+                                  Text(
+                                    "Vehicle Type: ${bd['vehicle'] ?? 'N/A'}",
+                                    style: GoogleFonts.poppins(fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
                 ),

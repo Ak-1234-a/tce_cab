@@ -12,11 +12,10 @@ class VehiclesPage extends StatefulWidget {
 class _VehiclesPageState extends State<VehiclesPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _numberPlateController = TextEditingController();
   final TextEditingController _brandController = TextEditingController();
+  String? selectedVehicleName;
   String? editingDocId;
-  String currentVehicleName = '';
   bool isFree = true;
 
   final Map<String, IconData> vehicleIconMap = {
@@ -27,140 +26,176 @@ class _VehiclesPageState extends State<VehiclesPage> {
     'Bus': Icons.directions_bus,
   };
 
-  void _showVehicleDialog({String? name, String? numberPlate, String? docId, String? brand, bool? currentIsFree}) {
-    _nameController.text = name ?? '';
+  void _showVehicleDialog({
+    String? name,
+    String? numberPlate,
+    String? brand,
+    String? docId,
+    bool? currentIsFree,
+  }) {
+    selectedVehicleName = name;
     _numberPlateController.text = numberPlate ?? '';
     _brandController.text = brand ?? '';
     editingDocId = docId;
-    currentVehicleName = name ?? '';
     isFree = currentIsFree ?? true;
 
     showDialog(
       context: context,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            title: Text(
-              docId == null ? 'Add Vehicle' : 'Edit Vehicle',
-              style: GoogleFonts.poppins(
-                color: Colors.blue[800],
-                fontWeight: FontWeight.bold,
-              ),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Text(
+            docId == null ? 'Add Vehicle' : 'Edit Vehicle',
+            style: GoogleFonts.poppins(
+              color: Colors.blue[800],
+              fontWeight: FontWeight.bold,
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    onChanged: (val) => setState(() {
-                      currentVehicleName = val;
-                    }),
-                    decoration: InputDecoration(
-                      labelText: 'Vehicle Name',
-                      prefixIcon: const Icon(Icons.directions_car, color: Colors.blue),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _numberPlateController,
-                    decoration: InputDecoration(
-                      labelText: 'Number Plate',
-                      prefixIcon: const Icon(Icons.confirmation_number, color: Colors.blue),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (currentVehicleName.trim().toLowerCase() == 'car')
-                    TextField(
-                      controller: _brandController,
-                      decoration: InputDecoration(
-                        labelText: 'Brand',
-                        prefixIcon: const Icon(Icons.branding_watermark, color: Colors.blue),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Icon(Icons.toggle_on, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      const Text("Is Vehicle Available?"),
-                      const Spacer(),
-                      Switch(
-                        value: isFree,
-                        onChanged: (value) {
-                          setState(() {
-                            isFree = value;
-                          });
-                        },
-                        activeColor: Colors.green,
-                      ),
-                    ],
-                  )
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  _nameController.clear();
-                  _numberPlateController.clear();
-                  _brandController.clear();
-                  editingDocId = null;
-                  Navigator.pop(context);
-                },
-                child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[800],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () async {
-                  final name = _nameController.text.trim();
-                  final numberPlate = _numberPlateController.text.trim();
-                  final brand = _brandController.text.trim();
-
-                  if (name.isEmpty || numberPlate.isEmpty) return;
-                  if (name.toLowerCase() == 'car' && brand.isEmpty) return;
-
-                  final data = {
-                    'name': name,
-                    'numberPlate': numberPlate,
-                    'isFree': isFree,
-                    if (name.toLowerCase() == 'car') 'brand': brand,
-                  };
-
-                  if (editingDocId == null) {
-                    await _firestore.collection('vehicles').add(data);
-                  } else {
-                    await _firestore.collection('vehicles').doc(editingDocId).update(data);
-                  }
-
-                  _nameController.clear();
-                  _numberPlateController.clear();
-                  _brandController.clear();
-                  editingDocId = null;
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  docId == null ? 'Add' : 'Update',
-                  style: GoogleFonts.poppins(color: Colors.white),
-                ),
-              ),
-            ],
           ),
-        );
-      },
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedVehicleName,
+                  items: vehicleIconMap.keys.map((name) {
+                    return DropdownMenuItem(
+                      value: name,
+                      child: Row(
+                        children: [
+                          Icon(vehicleIconMap[name], color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Text(name, style: GoogleFonts.poppins()),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  decoration: InputDecoration(
+                    labelText: 'Vehicle Type',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onChanged: (val) => setState(() {
+                    selectedVehicleName = val;
+                  }),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _numberPlateController,
+                  decoration: InputDecoration(
+                    labelText: 'Number Plate',
+                    prefixIcon:
+                        const Icon(Icons.confirmation_number, color: Colors.blue),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (selectedVehicleName?.toLowerCase() == 'car')
+                  TextField(
+                    controller: _brandController,
+                    decoration: InputDecoration(
+                      labelText: 'Brand',
+                      prefixIcon:
+                          const Icon(Icons.branding_watermark, color: Colors.blue),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.toggle_on, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    const Text("Is Vehicle Available?"),
+                    const Spacer(),
+                    Switch(
+                      value: isFree,
+                      onChanged: (value) => setState(() {
+                        isFree = value;
+                      }),
+                      activeColor: Colors.green,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                selectedVehicleName = null;
+                _numberPlateController.clear();
+                _brandController.clear();
+                editingDocId = null;
+                Navigator.pop(context);
+              },
+              child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[800],
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                final name = selectedVehicleName;
+                final numberPlate =
+                    _numberPlateController.text.trim();
+                final brand = _brandController.text.trim();
+
+                if (name == null ||
+                    name.isEmpty ||
+                    numberPlate.isEmpty) return;
+                if (name.toLowerCase() == 'car' && brand.isEmpty) return;
+
+                final data = {
+                  'name': name,
+                  'numberPlate': numberPlate,
+                  'isFree': isFree,
+                  if (name.toLowerCase() == 'car') 'brand': brand,
+                };
+
+                if (editingDocId == null) {
+                  await _firestore.collection('vehicles').add(data);
+                } else {
+                  await _firestore
+                      .collection('vehicles')
+                      .doc(editingDocId)
+                      .update(data);
+                }
+
+                selectedVehicleName = null;
+                _numberPlateController.clear();
+                _brandController.clear();
+                editingDocId = null;
+                Navigator.pop(context);
+              },
+              child: Text(
+                docId == null ? 'Add' : 'Update',
+                style: GoogleFonts.poppins(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _deleteVehicle(String docId) {
     _firestore.collection('vehicles').doc(docId).delete();
+  }
+
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?>
+      _getCurrentBooking(String numberPlate) async {
+    final snap = await _firestore
+        .collection('bookings')
+        .where('vehicleNumberPlate', isEqualTo: numberPlate)
+        .where('status', isEqualTo: 'accepted')
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty ? snap.docs.first : null;
   }
 
   @override
@@ -179,7 +214,6 @@ class _VehiclesPageState extends State<VehiclesPage> {
           }
 
           final vehicles = snapshot.data?.docs ?? [];
-
           if (vehicles.isEmpty) {
             return Center(
               child: Text(
@@ -196,92 +230,141 @@ class _VehiclesPageState extends State<VehiclesPage> {
               final doc = vehicles[index];
               final data = doc.data() as Map<String, dynamic>;
               final name = data['name'] ?? '';
-              final numberPlate = data['numberPlate'] ?? '';
+              final plate = data['numberPlate'] ?? '';
               final brand = data['brand'] ?? '';
-              final isFree = data['isFree'] ?? true;
+              final free = data['isFree'] ?? true;
               final iconData = vehicleIconMap[name] ?? Icons.directions_car;
 
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 elevation: 4,
-                color: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.blue.shade100,
-                        radius: 30,
-                        child: Icon(
-                          iconData,
-                          color: Colors.blue.shade800,
-                          size: 30,
+                      Row(children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.blue.shade100,
+                          radius: 30,
+                          child:
+                              Icon(iconData, color: Colors.blue.shade800, size: 30),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue[900],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              numberPlate,
-                              style: GoogleFonts.poppins(fontSize: 15, color: Colors.black87),
-                            ),
-                            if (brand.isNotEmpty)
-                              Text(
-                                "Brand: $brand",
-                                style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[800]),
-                              ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue[900],
+                                  )),
+                              const SizedBox(height: 4),
+                              Text(plate,
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 15, color: Colors.black87)),
+                              if (brand.isNotEmpty)
+                                Text("Brand: $brand",
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 14, color: Colors.grey[800])),
+                              const SizedBox(height: 6),
+                              Row(children: [
                                 Icon(
-                                  isFree ? Icons.check_circle : Icons.cancel,
-                                  color: isFree ? Colors.green : Colors.red,
+                                  free
+                                      ? Icons.check_circle
+                                      : Icons.cancel,
+                                  color:
+                                      free ? Colors.green : Colors.red,
                                   size: 18,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  isFree ? 'Available' : 'Occupied',
+                                  free ? 'Available' : 'Occupied',
                                   style: GoogleFonts.poppins(
-                                    color: isFree ? Colors.green : Colors.red,
+                                    color:
+                                        free ? Colors.green : Colors.red,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
+                              ]),
+                            ],
+                          ),
                         ),
-                      ),
-                      Column(
-                        children: [
+                        Column(children: [
                           IconButton(
                             icon: const Icon(Icons.edit, color: Colors.blue),
                             onPressed: () => _showVehicleDialog(
-                              name: name,
-                              numberPlate: numberPlate,
-                              docId: doc.id,
-                              brand: brand,
-                              currentIsFree: isFree,
-                            ),
+                                name: name,
+                                numberPlate: plate,
+                                docId: doc.id,
+                                brand: brand,
+                                currentIsFree: free),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _deleteVehicle(doc.id),
                           ),
-                        ],
-                      )
+                        ]),
+                      ]),
+
+                      // If occupied, show booking info below
+                      if (!free)
+                        FutureBuilder<
+                            QueryDocumentSnapshot<
+                                Map<String, dynamic>>?>(
+                          future: _getCurrentBooking(plate),
+                          builder: (context, bSnap) {
+                            if (bSnap.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.only(top: 12),
+                                child: LinearProgressIndicator(),
+                              );
+                            }
+                            final booking = bSnap.data;
+                            if (booking == null) {
+                              return const SizedBox(); // no booking found
+                            }
+                            final bd = booking.data();
+                            return Container(
+                              margin: const EdgeInsets.only(top: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Currently Booked:",
+                                      style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.blueGrey),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "${bd['eventName']} • Dept: ${bd['department'] ?? 'N/A'}",
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      "Drop: ${bd['dropDate']} at ${bd['dropTime']} → ${bd['dropLocation']}",
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      "Driver: ${bd['driverName']} (${bd['driverPhone']})",
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                  ]),
+                            );
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -293,10 +376,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showVehicleDialog(),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: Text(
-          'Add Vehicle',
-          style: GoogleFonts.poppins(color: Colors.white),
-        ),
+        label: Text('Add Vehicle', style: GoogleFonts.poppins(color: Colors.white)),
         backgroundColor: Colors.blue[800],
       ),
     );
