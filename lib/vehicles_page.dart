@@ -17,8 +17,8 @@ class _VehiclesPageState extends State<VehiclesPage> {
   final TextEditingController _brandController = TextEditingController();
   String? editingDocId;
   String currentVehicleName = '';
+  bool isFree = true;
 
-  // Map vehicle name to Material IconData
   final Map<String, IconData> vehicleIconMap = {
     'Car': Icons.directions_car,
     'EV Auto': Icons.electric_rickshaw,
@@ -27,12 +27,13 @@ class _VehiclesPageState extends State<VehiclesPage> {
     'Bus': Icons.directions_bus,
   };
 
-  void _showVehicleDialog({String? name, String? numberPlate, String? docId, String? brand}) {
+  void _showVehicleDialog({String? name, String? numberPlate, String? docId, String? brand, bool? currentIsFree}) {
     _nameController.text = name ?? '';
     _numberPlateController.text = numberPlate ?? '';
     _brandController.text = brand ?? '';
     editingDocId = docId;
     currentVehicleName = name ?? '';
+    isFree = currentIsFree ?? true;
 
     showDialog(
       context: context,
@@ -82,6 +83,24 @@ class _VehiclesPageState extends State<VehiclesPage> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.toggle_on, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      const Text("Is Vehicle Available?"),
+                      const Spacer(),
+                      Switch(
+                        value: isFree,
+                        onChanged: (value) {
+                          setState(() {
+                            isFree = value;
+                          });
+                        },
+                        activeColor: Colors.green,
+                      ),
+                    ],
+                  )
                 ],
               ),
             ),
@@ -112,6 +131,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                   final data = {
                     'name': name,
                     'numberPlate': numberPlate,
+                    'isFree': isFree,
                     if (name.toLowerCase() == 'car') 'brand': brand,
                   };
 
@@ -148,7 +168,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
     return Scaffold(
       backgroundColor: Colors.blue.shade50,
       appBar: AppBar(
-        title: const Text('Vehicles'),
+        title: const Text('Vehicles', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue[800],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -178,52 +198,90 @@ class _VehiclesPageState extends State<VehiclesPage> {
               final name = data['name'] ?? '';
               final numberPlate = data['numberPlate'] ?? '';
               final brand = data['brand'] ?? '';
+              final isFree = data['isFree'] ?? true;
               final iconData = vehicleIconMap[name] ?? Icons.directions_car;
 
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8),
-                elevation: 3,
+                elevation: 4,
                 color: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade100,
-                    radius: 30,
-                    child: Icon(
-                      iconData,
-                      color: Colors.blue.shade800,
-                      size: 30,
-                    ),
-                  ),
-                  title: Text(
-                    name,
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[900],
-                    ),
-                  ),
-                  subtitle: Text(
-                    brand.isNotEmpty ? "$numberPlate | $brand" : numberPlate,
-                    style: GoogleFonts.poppins(fontSize: 15, color: Colors.blue[700]),
-                  ),
-                  trailing: Wrap(
-                    spacing: 12,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showVehicleDialog(
-                          name: name,
-                          numberPlate: numberPlate,
-                          docId: doc.id,
-                          brand: brand,
+                      CircleAvatar(
+                        backgroundColor: Colors.blue.shade100,
+                        radius: 30,
+                        child: Icon(
+                          iconData,
+                          color: Colors.blue.shade800,
+                          size: 30,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteVehicle(doc.id),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[900],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              numberPlate,
+                              style: GoogleFonts.poppins(fontSize: 15, color: Colors.black87),
+                            ),
+                            if (brand.isNotEmpty)
+                              Text(
+                                "Brand: $brand",
+                                style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[800]),
+                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  isFree ? Icons.check_circle : Icons.cancel,
+                                  color: isFree ? Colors.green : Colors.red,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isFree ? 'Available' : 'Occupied',
+                                  style: GoogleFonts.poppins(
+                                    color: isFree ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
+                      Column(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () => _showVehicleDialog(
+                              name: name,
+                              numberPlate: numberPlate,
+                              docId: doc.id,
+                              brand: brand,
+                              currentIsFree: isFree,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteVehicle(doc.id),
+                          ),
+                        ],
+                      )
                     ],
                   ),
                 ),

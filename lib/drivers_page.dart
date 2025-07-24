@@ -152,40 +152,77 @@ class _DriversPageState extends State<DriversPage> {
             itemBuilder: (context, index) {
               final doc = drivers[index];
               final data = doc.data() as Map<String, dynamic>;
+              final isFree = data['isFree'] ?? false;
 
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8),
-                elevation: 3,
-                color: Colors.blue[100],
+                elevation: 4,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  title: Text(
-                    data['name'] ?? '',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.blue[900],
-                    ),
-                  ),
-                  subtitle: Text(
-                    data['phone'] ?? '',
-                    style: GoogleFonts.poppins(fontSize: 15, color: Colors.blue[800]),
-                  ),
-                  trailing: Wrap(
-                    spacing: 12,
+                color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  child: Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showDriverDialog(
-                          name: data['name'],
-                          phone: data['phone'],
-                          docId: doc.id,
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.blue.shade100,
+                        child: const Icon(Icons.person, color: Colors.blue, size: 30),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data['name'] ?? '',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue[900],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              data['phone'] ?? '',
+                              style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey[800]),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  isFree ? Icons.check_circle : Icons.cancel,
+                                  color: isFree ? Colors.green : Colors.red,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  isFree ? 'Available' : 'Occupied',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: isFree ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            )
+                          ],
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteDriver(doc.id),
+                      Column(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () => _showDriverDialog(
+                              name: data['name'],
+                              phone: data['phone'],
+                              docId: doc.id,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteDriver(doc.id),
+                          ),
+                        ],
                       ),
                     ],
                   ),
