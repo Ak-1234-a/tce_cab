@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'manage_requests_page.dart';
 import 'view_history_page.dart';
-import 'drivers_page.dart'; // <-- Import the Drivers Page
+import 'drivers_page.dart';
 import 'report_schedule_page.dart';
 import 'vehicles_page.dart';
+
+// Import your main.dart widget here (adjust the path and class name)
+import 'main.dart'; // <- Make sure this is correct path
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -93,7 +96,7 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.directions_car,
                 label: 'Drivers',
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -106,13 +109,13 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.directions_bus,
                 label: 'Vehicles',
                 onTap: () {
-                   Navigator.pop(context); // Close drawer
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const VehiclesPage(),
-      ),
-    );
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const VehiclesPage(),
+                    ),
+                  );
                 },
               ),
               _buildDrawerItem(
@@ -133,7 +136,15 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.logout,
                 label: 'Logout',
                 onTap: () {
-                  // Handle logout
+                  // Close drawer first
+                  Navigator.pop(context);
+
+                  // Navigate to main.dart (replace MyApp() with your main widget)
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MyApp()),
+                    (route) => false,
+                  );
                 },
               ),
             ],
