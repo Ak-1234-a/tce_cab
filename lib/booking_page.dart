@@ -18,15 +18,34 @@ class _BookingPageState extends State<BookingPage> {
   final _resourcePersonController = TextEditingController();
   final _pickupLocationController = TextEditingController();
   final _dropLocationController = TextEditingController();
-  final _departmentController = TextEditingController();
 
   String? _selectedFacility;
   String? _selectedPersons;
+  String? _selectedDepartment;
 
   DateTime? _pickupDate;
   TimeOfDay? _pickupTime;
   DateTime? _dropDate;
   TimeOfDay? _dropTime;
+
+  final List<String> _departments = [
+    'Information Technology',
+    'Computer Science and Engineering',
+    'Computer Science and Business System',
+    'Mechanical',
+    'Mechatronics',
+    'TSEDA',
+    'Civil',
+    'Applied Mathematics and Computational Science',
+    'Maths',
+    'Physics',
+    'Chemistry',
+    'Mathematics',
+    'Electronics and communication Engineering',
+    'Electrical and Electronics Engineering',
+    'English',
+    'Computer Applications',
+  ];
 
   String get _facultyName {
     final parts = widget.facultyEmail.split('@').first.split('.');
@@ -39,7 +58,6 @@ class _BookingPageState extends State<BookingPage> {
     _resourcePersonController.dispose();
     _pickupLocationController.dispose();
     _dropLocationController.dispose();
-    _departmentController.dispose();
     super.dispose();
   }
 
@@ -87,7 +105,7 @@ class _BookingPageState extends State<BookingPage> {
         _resourcePersonController.text.isEmpty ||
         _pickupLocationController.text.isEmpty ||
         _dropLocationController.text.isEmpty ||
-        _departmentController.text.isEmpty ||
+        _selectedDepartment == null ||
         _pickupDate == null ||
         _pickupTime == null ||
         _dropDate == null ||
@@ -107,7 +125,7 @@ class _BookingPageState extends State<BookingPage> {
       'facility': _selectedFacility,
       'pickupLocation': _pickupLocationController.text,
       'dropLocation': _dropLocationController.text,
-      'department': _departmentController.text,
+      'department': _selectedDepartment,
       'pickupDate': _formatDate(_pickupDate),
       'pickupTime': _formatTime(_pickupTime),
       'dropDate': _formatDate(_dropDate),
@@ -135,10 +153,10 @@ class _BookingPageState extends State<BookingPage> {
     _resourcePersonController.clear();
     _pickupLocationController.clear();
     _dropLocationController.clear();
-    _departmentController.clear();
     setState(() {
       _selectedFacility = null;
       _selectedPersons = null;
+      _selectedDepartment = null;
       _pickupDate = null;
       _pickupTime = null;
       _dropDate = null;
@@ -240,7 +258,14 @@ class _BookingPageState extends State<BookingPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              _buildTextField(_departmentController, 'Department', Icons.apartment),
+              // Department Dropdown
+              _buildDropdown(
+                label: 'Department',
+                icon: Icons.apartment,
+                value: _selectedDepartment,
+                items: _departments,
+                onChanged: (v) => setState(() => _selectedDepartment = v),
+              ),
             ]),
             const SizedBox(height: 20),
             _buildCard('Vehicle Booking', [

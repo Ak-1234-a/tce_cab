@@ -16,7 +16,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
   final TextEditingController _brandController = TextEditingController();
   String? selectedVehicleName;
   String? editingDocId;
-  bool isFree = true;
+  // Remove isFree from dialog state since we don't want toggle anymore
 
   final Map<String, IconData> vehicleIconMap = {
     'Car': Icons.directions_car,
@@ -31,21 +31,18 @@ class _VehiclesPageState extends State<VehiclesPage> {
     String? numberPlate,
     String? brand,
     String? docId,
-    bool? currentIsFree,
   }) {
     selectedVehicleName = name;
     _numberPlateController.text = numberPlate ?? '';
     _brandController.text = brand ?? '';
     editingDocId = docId;
-    isFree = currentIsFree ?? true;
 
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text(
             docId == null ? 'Add Vehicle' : 'Edit Vehicle',
             style: GoogleFonts.poppins(
@@ -73,8 +70,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                   }).toList(),
                   decoration: InputDecoration(
                     labelText: 'Vehicle Type',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onChanged: (val) => setState(() {
                     selectedVehicleName = val;
@@ -85,10 +81,8 @@ class _VehiclesPageState extends State<VehiclesPage> {
                   controller: _numberPlateController,
                   decoration: InputDecoration(
                     labelText: 'Number Plate',
-                    prefixIcon:
-                        const Icon(Icons.confirmation_number, color: Colors.blue),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.confirmation_number, color: Colors.blue),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -97,28 +91,11 @@ class _VehiclesPageState extends State<VehiclesPage> {
                     controller: _brandController,
                     decoration: InputDecoration(
                       labelText: 'Brand',
-                      prefixIcon:
-                          const Icon(Icons.branding_watermark, color: Colors.blue),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                      prefixIcon: const Icon(Icons.branding_watermark, color: Colors.blue),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(Icons.toggle_on, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    const Text("Is Vehicle Available?"),
-                    const Spacer(),
-                    Switch(
-                      value: isFree,
-                      onChanged: (value) => setState(() {
-                        isFree = value;
-                      }),
-                      activeColor: Colors.green,
-                    ),
-                  ],
-                ),
+                // Removed toggle for availability here
               ],
             ),
           ),
@@ -136,34 +113,41 @@ class _VehiclesPageState extends State<VehiclesPage> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue[800],
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
                 final name = selectedVehicleName;
-                final numberPlate =
-                    _numberPlateController.text.trim();
+                final numberPlate = _numberPlateController.text.trim();
                 final brand = _brandController.text.trim();
 
-                if (name == null ||
-                    name.isEmpty ||
-                    numberPlate.isEmpty) return;
+                if (name == null || name.isEmpty || numberPlate.isEmpty) return;
                 if (name.toLowerCase() == 'car' && brand.isEmpty) return;
 
+                // When adding new vehicle, isFree = true by default
                 final data = {
                   'name': name,
                   'numberPlate': numberPlate,
-                  'isFree': isFree,
+                  'isFree': editingDocId == null ? true : null, // set true on add, keep as is on update
                   if (name.toLowerCase() == 'car') 'brand': brand,
                 };
 
                 if (editingDocId == null) {
-                  await _firestore.collection('vehicles').add(data);
+                  // Add new vehicle with isFree true
+                  await _firestore.collection('vehicles').add({
+                    'name': name,
+                    'numberPlate': numberPlate,
+                    'isFree': true,
+                    if (name.toLowerCase() == 'car') 'brand': brand,
+                  });
                 } else {
-                  await _firestore
-                      .collection('vehicles')
-                      .doc(editingDocId)
-                      .update(data);
+                  // Update vehicle without changing isFree
+                  // So we remove isFree field from update map (keep current availability status)
+                  final updateData = {
+                    'name': name,
+                    'numberPlate': numberPlate,
+                    if (name.toLowerCase() == 'car') 'brand': brand,
+                  };
+                  await _firestore.collection('vehicles').doc(editingDocId).update(updateData);
                 }
 
                 selectedVehicleName = null;
@@ -173,7 +157,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                 Navigator.pop(context);
               },
               child: Text(
-                docId == null ? 'Add' : 'Update',
+                editingDocId == null ? 'Add' : 'Update',
                 style: GoogleFonts.poppins(color: Colors.white),
               ),
             ),
@@ -187,8 +171,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
     _firestore.collection('vehicles').doc(docId).delete();
   }
 
-  Future<QueryDocumentSnapshot<Map<String, dynamic>>?>
-      _getCurrentBooking(String numberPlate) async {
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _getCurrentBooking(String numberPlate) async {
     final snap = await _firestore
         .collection('bookings')
         .where('vehicleNumberPlate', isEqualTo: numberPlate)
@@ -238,8 +221,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 elevation: 4,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -249,8 +231,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                         CircleAvatar(
                           backgroundColor: Colors.blue.shade100,
                           radius: 30,
-                          child:
-                              Icon(iconData, color: Colors.blue.shade800, size: 30),
+                          child: Icon(iconData, color: Colors.blue.shade800, size: 30),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -265,28 +246,22 @@ class _VehiclesPageState extends State<VehiclesPage> {
                                   )),
                               const SizedBox(height: 4),
                               Text(plate,
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 15, color: Colors.black87)),
+                                  style: GoogleFonts.poppins(fontSize: 15, color: Colors.black87)),
                               if (brand.isNotEmpty)
                                 Text("Brand: $brand",
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 14, color: Colors.grey[800])),
+                                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[800])),
                               const SizedBox(height: 6),
                               Row(children: [
                                 Icon(
-                                  free
-                                      ? Icons.check_circle
-                                      : Icons.cancel,
-                                  color:
-                                      free ? Colors.green : Colors.red,
+                                  free ? Icons.check_circle : Icons.cancel,
+                                  color: free ? Colors.green : Colors.red,
                                   size: 18,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   free ? 'Available' : 'Occupied',
                                   style: GoogleFonts.poppins(
-                                    color:
-                                        free ? Colors.green : Colors.red,
+                                    color: free ? Colors.green : Colors.red,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -298,11 +273,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                           IconButton(
                             icon: const Icon(Icons.edit, color: Colors.blue),
                             onPressed: () => _showVehicleDialog(
-                                name: name,
-                                numberPlate: plate,
-                                docId: doc.id,
-                                brand: brand,
-                                currentIsFree: free),
+                                name: name, numberPlate: plate, docId: doc.id, brand: brand),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
@@ -313,13 +284,10 @@ class _VehiclesPageState extends State<VehiclesPage> {
 
                       // If occupied, show booking info below
                       if (!free)
-                        FutureBuilder<
-                            QueryDocumentSnapshot<
-                                Map<String, dynamic>>?>(
+                        FutureBuilder<QueryDocumentSnapshot<Map<String, dynamic>>?>(
                           future: _getCurrentBooking(plate),
                           builder: (context, bSnap) {
-                            if (bSnap.connectionState ==
-                                ConnectionState.waiting) {
+                            if (bSnap.connectionState == ConnectionState.waiting) {
                               return const Padding(
                                 padding: EdgeInsets.only(top: 12),
                                 child: LinearProgressIndicator(),
@@ -337,31 +305,28 @@ class _VehiclesPageState extends State<VehiclesPage> {
                                 color: Colors.grey.shade100,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Currently Booked:",
-                                      style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.blueGrey),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "${bd['eventName']} • Dept: ${bd['department'] ?? 'N/A'}",
-                                      style: GoogleFonts.poppins(),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "Drop: ${bd['dropDate']} at ${bd['dropTime']} → ${bd['dropLocation']}",
-                                      style: GoogleFonts.poppins(),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "Driver: ${bd['driverName']} (${bd['driverPhone']})",
-                                      style: GoogleFonts.poppins(),
-                                    ),
-                                  ]),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(
+                                  "Currently Booked:",
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600, color: Colors.blueGrey),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${bd['eventName']} • Dept: ${bd['department'] ?? 'N/A'}",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Drop: ${bd['dropDate']} at ${bd['dropTime']} → ${bd['dropLocation']}",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Driver: ${bd['driverName']} (${bd['driverPhone']})",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ]),
                             );
                           },
                         ),
@@ -373,6 +338,9 @@ class _VehiclesPageState extends State<VehiclesPage> {
           );
         },
       ),
+
+      // Move FloatingActionButton to bottom left by using floatingActionButtonLocation & Row wrapper
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showVehicleDialog(),
         icon: const Icon(Icons.add, color: Colors.white),
