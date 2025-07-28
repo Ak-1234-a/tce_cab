@@ -7,36 +7,27 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class GeneratePDFPage extends StatelessWidget {
-  final DateTime selectedDate;
-  final TimeOfDay selectedTime;
-
-  const GeneratePDFPage({
-    super.key,
-    required this.selectedDate,
-    required this.selectedTime,
-  });
+  const GeneratePDFPage({super.key});
 
   Future<Uint8List> _createPdf() async {
     final pdf = pw.Document();
 
-    final monthStart = DateTime(selectedDate.year, selectedDate.month, 1);
-    final monthEnd = DateTime(selectedDate.year, selectedDate.month + 1, 1).subtract(const Duration(seconds: 1));
-
     QuerySnapshot snapshot;
     try {
-      snapshot = await FirebaseFirestore.instance
-          .collection('bookings')
-          .where('timestamp', isGreaterThanOrEqualTo: monthStart)
-          .where('timestamp', isLessThanOrEqualTo: monthEnd)
-          .get();
+      snapshot = await FirebaseFirestore.instance.collection('bookings').get();
     } catch (e) {
       print('Error fetching Firestore data: $e');
       rethrow;
     }
 
-    // Separate bookings in Dart (no need for composite index)
-    final accepted = snapshot.docs.where((doc) => doc['status'] == 'accepted').toList();
-    final rejected = snapshot.docs.where((doc) => doc['status'] == 'rejected').toList();
+    // Group bookings by department field
+    Map<String, List<Map<String, dynamic>>> deptWise = {};
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final dept = data['department'] ?? 'Unknown Department';
+      deptWise.putIfAbsent(dept, () => []).add(data);
+    }
 
     pdf.addPage(
       pw.MultiPage(
@@ -45,59 +36,72 @@ class GeneratePDFPage extends StatelessWidget {
           alignment: pw.Alignment.centerRight,
           child: pw.Text('Page ${context.pageNumber} of ${context.pagesCount}'),
         ),
-        build: (context) => [
-          pw.Header(
-            level: 0,
-            child: pw.Text(
-              "Vehicle Booking Monthly Report - ${DateFormat('MMMM yyyy').format(selectedDate)}",
-              style: pw.TextStyle(fontSize: 20),
-            ),
-          ),
+        build: (context) {
+          List<pw.Widget> content = [
+            pw.Header(
+              level: 0,
+              child: pw.Text("TCE Cab Booking Report (Department-wise)",
+                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            )
+          ];
 
-          pw.Text("ACCEPTED REQUESTS", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          if (accepted.isEmpty)
-            pw.Text("No accepted requests found."),
-          ...accepted.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return pw.Bullet(
-              text:
-              "${data['eventName'] ?? 'No Event'} by ${data['facultyEmail'] ?? 'Unknown'} on ${_formatDate(data['pickupDate'])} at ${data['pickupTime'] ?? 'N/A'}",
-            );
-          }),
+          deptWise.forEach((dept, bookings) {
+            content.add(pw.SizedBox(height: 20));
+            content.add(pw.Text(
+              "$dept (${bookings.length} events)",
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ));
+            content.add(pw.SizedBox(height: 10));
 
-          pw.SizedBox(height: 20),
+            content.add(pw.Table.fromTextArray(
+              headers: [
+                'Event Name',
+                'Vehicle Type',
+                'Pickup Details',
+                'Drop Details',
+                'Faculty Email',
+                'Status',
+                'Rejection Reason'
+              ],
+              data: bookings.map((d) {
+                return [
+                  d['eventName'] ?? '-',
+                  d['facility'] ?? '-',
+                  '${d['pickupDate']} ${d['pickupTime']}\n${d['pickupLocation']}',
+                  '${d['dropDate']} ${d['dropTime']}\n${d['dropLocation']}',
+                  d['facultyEmail'] ?? '-',
+                  d['status'] ?? '-',
+                  d['status'] == 'rejected' ? (d['rejectionReason'] ?? '-') : '-',
+                ];
+              }).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              cellAlignment: pw.Alignment.centerLeft,
+              border: pw.TableBorder.all(color: PdfColors.grey),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(2),
+                1: const pw.FlexColumnWidth(1.5),
+                2: const pw.FlexColumnWidth(2.5),
+                3: const pw.FlexColumnWidth(2.5),
+                4: const pw.FlexColumnWidth(2.5),
+                5: const pw.FlexColumnWidth(1.5),
+                6: const pw.FlexColumnWidth(2),
+              },
+            ));
+          });
 
-          pw.Text("REJECTED REQUESTS", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          if (rejected.isEmpty)
-            pw.Text("No rejected requests found."),
-          ...rejected.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return pw.Bullet(
-              text:
-              "${data['eventName'] ?? 'No Event'} by ${data['facultyEmail'] ?? 'Unknown'} on ${_formatDate(data['pickupDate'])} at ${data['pickupTime'] ?? 'N/A'}. Reason: ${data['rejectionReason'] ?? 'N/A'}",
-            );
-          }),
-        ],
+          return content;
+        },
       ),
     );
 
     return pdf.save();
   }
 
-  static String _formatDate(dynamic date) {
-    if (date is Timestamp) {
-      return DateFormat('dd MMM yyyy').format(date.toDate());
-    } else if (date is String) {
-      return date;
-    } else {
-      return 'N/A';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('PDF Preview')),
+      appBar: AppBar(title: const Text('TCE Cab Report')),
       body: FutureBuilder<Uint8List>(
         future: _createPdf(),
         builder: (context, snapshot) {

@@ -30,6 +30,7 @@ dependencies:
   pdf: ^3.10.4
   printing: ^5.10.4
   url_launcher: ^6.2.4 # Or latest version
+  android_alarm_manager_plus: ^3.0.3
 
 
 
