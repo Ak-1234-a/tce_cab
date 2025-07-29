@@ -5,6 +5,7 @@ import 'view_history_page.dart';
 import 'drivers_page.dart'; // <-- Import the Drivers Page
 import 'report_schedule_page.dart';
 import 'vehicles_page.dart';
+import 'manager_login_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -134,6 +135,12 @@ class AdminDashboardPage extends StatelessWidget {
                 label: 'Logout',
                 onTap: () {
                   // Handle logout
+                  Navigator.pop(context); // Close drawer first
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const ManagerLoginPage()),
+      (route) => false,
+    );
                 },
               ),
             ],

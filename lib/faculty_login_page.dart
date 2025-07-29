@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'booking_page.dart';
 import 'faculty_register_page.dart';
+import 'forgot_password_page.dart';
 
 class FacultyLoginPage extends StatefulWidget {
   const FacultyLoginPage({super.key});
@@ -148,6 +149,10 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
                   TextButton(
                     onPressed: () {
                       // Implement forgot password flow (manual or form)
+                      Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+    );
                     },
                     child: const Text('Forgot Password?'),
                   ),

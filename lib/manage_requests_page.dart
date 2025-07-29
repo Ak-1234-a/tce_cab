@@ -93,7 +93,7 @@ class ManageRequestsPage extends StatelessWidget {
           child: ListView(
             shrinkWrap: true,
             children: vehicleSnap.docs.map((v) {
-              final vd = v.data() as Map<String, dynamic>;
+              final vd = v.data();
               return Card(
                 child: ListTile(
                   title: Text('${vd['name']} – ${vd['numberPlate']}'),
@@ -135,7 +135,7 @@ class ManageRequestsPage extends StatelessWidget {
           child: ListView(
             shrinkWrap: true,
             children: driverSnap.docs.map((d) {
-              final dd = d.data() as Map<String, dynamic>;
+              final dd = d.data();
               return Card(
                 child: ListTile(
                   title: Text(dd['name'] ?? ''),
@@ -373,7 +373,7 @@ class BookingCard extends StatelessWidget {
               _row(Icons.school, 'Facility:', data['facility'] ?? ''),
               _row(Icons.person, 'Resource:', data['resourcePerson'] ?? ''),
               _row(Icons.forward, 'Forwarded:', data['forwardThrough'] ?? ''),
-              _row(Icons.email, 'Requested by:', data['facultyEmail'] ?? ''),
+              _row(Icons.email, 'Requested by:', data['name'] ?? ''),
               const SizedBox(height: 16),
               Row(children: [
                 Expanded(

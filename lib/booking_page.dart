@@ -445,29 +445,38 @@ class _BookingPageState extends State<BookingPage> {
     );
   }
 
-  Widget _buildDropdown({
-    required String label,
-    required IconData icon,
-    required String? value,
-    required List<String> items,
-    required void Function(String?) onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.blue),
-        labelText: label,
-        labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
-        border: const OutlineInputBorder(),
-      ),
-      items: items
-          .map((e) =>
-              DropdownMenuItem(value: e, child: Text(e, style: GoogleFonts.openSans())))
-          .toList(),
-      onChanged: onChanged,
-      style: GoogleFonts.openSans(color: Colors.black),
-    );
-  }
+ Widget _buildDropdown({
+  required String label,
+  required IconData icon,
+  required String? value,
+  required List<String> items,
+  required void Function(String?) onChanged,
+}) {
+  return DropdownButtonFormField<String>(
+    value: value,
+    menuMaxHeight: 300, // Limit dropdown height to avoid overflow
+    decoration: InputDecoration(
+      prefixIcon: Icon(icon, color: Colors.blue),
+      labelText: label,
+      labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
+      border: const OutlineInputBorder(),
+    ),
+    items: items
+        .map(
+          (e) => DropdownMenuItem(
+            value: e,
+            child: Text(
+              e,
+              style: GoogleFonts.openSans(),
+            ),
+          ),
+        )
+        .toList(),
+    onChanged: onChanged,
+    style: GoogleFonts.openSans(color: Colors.black),
+  );
+}
+
 
   Widget _buildDateTimeRow(bool isPickup) {
     final date = isPickup ? _pickupDate : _dropDate;
