@@ -30,7 +30,8 @@ class ManageRequestsPage extends StatelessWidget {
 
           const priorityOrder = [
             'principal@tce.edu',
-            'hod@tce.edu',
+            'hodit@tce.edu',
+            'hodcse@tce.edu',
             'deanacad@tce.edu',
           ];
 
@@ -54,7 +55,8 @@ class ManageRequestsPage extends StatelessWidget {
             itemBuilder: (ctx, i) {
               final doc = docs[i];
               final data = doc.data() as Map<String, dynamic>;
-              return BookingCard(
+              return BookingCardWrapper(
+                docId: doc.id,
                 data: data,
                 onAccept: () => _onAccept(ctx, doc.id, data),
                 onReject: () => _onReject(ctx, doc.id, data),
@@ -68,7 +70,6 @@ class ManageRequestsPage extends StatelessWidget {
 
   Future<void> _onAccept(
       BuildContext ctx, String id, Map<String, dynamic> data) async {
-    // Step 1: pick vehicle
     final vehicleSnap = await FirebaseFirestore.instance
         .collection('vehicles')
         .where('isFree', isEqualTo: true)
@@ -86,8 +87,8 @@ class ManageRequestsPage extends StatelessWidget {
     await showDialog(
       context: ctx,
       builder: (_) => AlertDialog(
-        title:
-            Text('Select Vehicle', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: Text('Select Vehicle',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView(
@@ -112,7 +113,6 @@ class ManageRequestsPage extends StatelessWidget {
     );
     if (selectedVehicleId == null || selectedVehicle == null) return;
 
-    // Step 2: pick driver
     final driverSnap = await FirebaseFirestore.instance
         .collection('drivers')
         .where('isFree', isEqualTo: true)
@@ -128,8 +128,8 @@ class ManageRequestsPage extends StatelessWidget {
     await showDialog(
       context: ctx,
       builder: (_) => AlertDialog(
-        title:
-            Text('Select Driver', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: Text('Select Driver',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView(
@@ -154,7 +154,6 @@ class ManageRequestsPage extends StatelessWidget {
     );
     if (selectedDriverId == null || selectedDriver == null) return;
 
-    // Step 3: update Firestore
     await FirebaseFirestore.instance.collection('bookings').doc(id).update({
       'status': 'accepted',
       'vehicleId': selectedVehicleId,
@@ -173,8 +172,9 @@ class ManageRequestsPage extends StatelessWidget {
         .doc(selectedDriverId)
         .update({'isFree': false});
 
-    // Step 4: send WhatsApp to driver
-    final phone = selectedDriver?['phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
+    final phone =
+        selectedDriver?['phone']?.toString().replaceAll(RegExp(r'\D'), '') ??
+            '';
     if (phone.isNotEmpty) {
       final msg = Uri.encodeComponent('''
 Hi ${selectedDriver?['name']},
@@ -187,7 +187,8 @@ Drop: ${data['dropDate']} at ${data['dropTime']} to ${data['dropLocation']}
 Persons: ${data['numberOfPersons']}
 Vehicle: ${selectedVehicle?['name']} – ${selectedVehicle?['numberPlate']}
 
-Thank you!
+Regards,
+TCE Manager
 ''');
       final uri = Uri.parse("https://wa.me/91$phone?text=$msg");
       if (await canLaunchUrl(uri)) {
@@ -195,7 +196,6 @@ Thank you!
       }
     }
 
-    // Step 5: send email to faculty
     await _sendEmail(
       to: data['facultyEmail'],
       subject: 'Booking Accepted: ${data['eventName']}',
@@ -211,7 +211,7 @@ Driver: ${selectedDriver?['name']} (${selectedDriver?['phone']})
 Vehicle: ${selectedVehicle?['name']} – ${selectedVehicle?['numberPlate']}
 
 Regards,
-Transport Admin
+TCE Manager
 ''',
     );
 
@@ -247,7 +247,6 @@ Transport Admin
               });
               Navigator.pop(ctx);
 
-              // email to faculty
               await _sendEmail(
                 to: data['facultyEmail'],
                 subject: 'Booking Rejected: ${data['eventName']}',
@@ -261,7 +260,7 @@ Reason: $reason
 Please contact transport admin for details.
 
 Regards,
-Transport Admin
+TCE Manager
 ''',
               );
 
@@ -275,20 +274,24 @@ Transport Admin
     );
   }
 
-  Future<void> _sendEmail({
-    required String? to,
-    required String subject,
-    required String body,
-  }) async {
-    final uri = Uri(
-      scheme: 'mailto',
-      path: to ?? '',
-      queryParameters: {'subject': subject, 'body': body},
-    );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
+ Future<void> _sendEmail({
+  required String? to,
+  required String subject,
+  required String body,
+}) async {
+  final encodedSubject = Uri.encodeComponent(subject);
+  final encodedBody = Uri.encodeComponent(body);
+
+  final uriString = 'mailto:${to ?? ''}?subject=$encodedSubject&body=$encodedBody';
+  final uri = Uri.parse(uriString);
+
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  } else {
+    debugPrint("Could not launch email client.");
   }
+}
+
 
   void _showDialog(BuildContext ctx, String title, String msg) {
     showDialog(
@@ -305,6 +308,49 @@ Transport Admin
 
   void _showSnackbar(BuildContext ctx, String msg) {
     ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg)));
+  }
+}
+
+class BookingCardWrapper extends StatelessWidget {
+  final String docId;
+  final Map<String, dynamic> data;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+
+  const BookingCardWrapper({
+    super.key,
+    required this.docId,
+    required this.data,
+    required this.onAccept,
+    required this.onReject,
+  });
+
+  Future<String> _getFacultyName(String email) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('faculty_logins')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isNotEmpty) {
+      return snap.docs.first.data()['name'] ?? 'Unknown';
+    }
+    return 'Unknown';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _getFacultyName(data['facultyEmail']),
+      builder: (context, snapshot) {
+        final name = snapshot.data ?? 'Loading...';
+        return BookingCard(
+          data: {...data, 'name': name},
+          onAccept: onAccept,
+          onReject: onReject,
+        );
+      },
+    );
   }
 }
 
@@ -348,8 +394,7 @@ class BookingCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: Card(
         elevation: 6,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -368,8 +413,7 @@ class BookingCard extends StatelessWidget {
               _row(Icons.place, 'Drop:',
                   '${data['dropDate']} ${data['dropTime']} to ${data['dropLocation']}'),
               const SizedBox(height: 10),
-              _row(Icons.people, 'Persons:',
-                  '${data['numberOfPersons']}'),
+              _row(Icons.people, 'Persons:', '${data['numberOfPersons']}'),
               _row(Icons.school, 'Facility:', data['facility'] ?? ''),
               _row(Icons.person, 'Resource:', data['resourcePerson'] ?? ''),
               _row(Icons.forward, 'Forwarded:', data['forwardThrough'] ?? ''),

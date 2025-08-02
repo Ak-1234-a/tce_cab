@@ -62,7 +62,7 @@ class LoginPage extends StatelessWidget {
 
               // App Title
               Text(
-                'TCE Cab Booking',
+                'TCE Vehicle Booking',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Colors.blue.shade800,

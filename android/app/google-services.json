@@ -1,15 +1,16 @@
 {
   "project_info": {
     "project_number": "1061688931027",
+    "firebase_url": "https://tce-2027-batch-default-rtdb.firebaseio.com",
     "project_id": "tce-2027-batch",
     "storage_bucket": "tce-2027-batch.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1061688931027:android:536fa33b5f5c18c3d81a26",
+        "mobilesdk_app_id": "1:1061688931027:android:574fc808bd27b1e6d81a26",
         "android_client_info": {
-          "package_name": "com.example.tce_cab"
+          "package_name": "com.tce.application"
         }
       },
       "oauth_client": [],

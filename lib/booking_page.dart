@@ -224,7 +224,7 @@ class _BookingPageState extends State<BookingPage> {
                 items: [
                   'Car',
                   'EV Auto',
-                  'Electric EV Buggy',
+                  'EV Buggy',
                   'Sumo',
                   'Bus',
                 ],
@@ -257,6 +257,7 @@ class _BookingPageState extends State<BookingPage> {
                   ),
                 ],
               ),
+              
               const SizedBox(height: 16),
               // Department Dropdown
               _buildDropdown(
@@ -443,74 +444,77 @@ class _BookingPageState extends State<BookingPage> {
       ),
       style: GoogleFonts.openSans(),
     );
-  }
-
- Widget _buildDropdown({
+  }Widget _buildDropdown({
   required String label,
   required IconData icon,
   required String? value,
   required List<String> items,
   required void Function(String?) onChanged,
 }) {
-  return DropdownButtonFormField<String>(
-    value: value,
-    menuMaxHeight: 300, // Limit dropdown height to avoid overflow
-    decoration: InputDecoration(
-      prefixIcon: Icon(icon, color: Colors.blue),
-      labelText: label,
-      labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
-      border: const OutlineInputBorder(),
-    ),
-    items: items
-        .map(
-          (e) => DropdownMenuItem(
-            value: e,
-            child: Text(
-              e,
-              style: GoogleFonts.openSans(),
+  return SizedBox(
+    width: double.infinity, // makes dropdown take max width possible
+    child: DropdownButtonFormField<String>(
+      value: value,
+      menuMaxHeight: 300,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: Colors.blue),
+        labelText: label,
+        labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
+        border: const OutlineInputBorder(),
+      ),
+      items: items
+          .map(
+            (e) => DropdownMenuItem(
+              value: e,
+              child: Text(
+                e,
+                style: GoogleFonts.openSans(),
+              ),
             ),
-          ),
-        )
-        .toList(),
-    onChanged: onChanged,
-    style: GoogleFonts.openSans(color: Colors.black),
+          )
+          .toList(),
+      onChanged: onChanged,
+      style: GoogleFonts.openSans(color: Colors.black),
+      isExpanded: true,  // important to allow dropdown to expand fully inside SizedBox
+    ),
   );
 }
 
 
-  Widget _buildDateTimeRow(bool isPickup) {
-    final date = isPickup ? _pickupDate : _dropDate;
-    final time = isPickup ? _pickupTime : _dropTime;
-    return Row(
-      children: [
-        Expanded(
-          child: TextFormField(
-            readOnly: true,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.calendar_today, color: Colors.blue),
-              labelText: isPickup ? 'Pickup Date' : 'Drop Date',
-              border: const OutlineInputBorder(),
-              hintText: date != null ? _formatDate(date) : 'Select Date',
-            ),
-            onTap: () => _selectDate(context, isPickup),
+ Widget _buildDateTimeRow(bool isPickup) {
+  final date = isPickup ? _pickupDate : _dropDate;
+  final time = isPickup ? _pickupTime : _dropTime;
+  return Row(
+    children: [
+      Expanded(
+        child: TextFormField(
+          readOnly: true,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.calendar_today, color: Colors.blue),
+            labelText: isPickup ? 'Pickup Date' : 'Drop Date',
+            border: const OutlineInputBorder(),
+            hintText: date != null ? _formatDate(date) : 'Select Date',
           ),
+          onTap: () => _selectDate(context, isPickup),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: TextFormField(
-            readOnly: true,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.access_time, color: Colors.blue),
-              labelText: isPickup ? 'Pickup Time' : 'Drop Time',
-              border: const OutlineInputBorder(),
-              hintText: time != null ? _formatTime(time) : 'Select Time',
-            ),
-            onTap: () => _selectTime(context, isPickup),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: TextFormField(
+          readOnly: true,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.access_time, color: Colors.blue),
+            labelText: isPickup ? 'Pickup Time' : 'Drop Time',
+            border: const OutlineInputBorder(),
+            hintText: time != null ? _formatTime(time) : 'Select Time',
           ),
+          onTap: () => _selectTime(context, isPickup),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 }
 
 extension StringCasingExtension on String {
