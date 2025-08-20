@@ -19,7 +19,7 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    if (_username.text == 'admin' && _password.text == 'admin') {
+    if (_username.text == 'manager' && _password.text == 'manager@tce') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const AdminDashboardPage()),

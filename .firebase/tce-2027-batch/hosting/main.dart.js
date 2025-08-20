@@ -105344,7 +105344,7 @@ IR(){var s=0,r=A.G(t.H),q,p=this,o,n
 var $async$IR=A.C(function(a,b){if(a===1)return A.D(b,r)
 while(true)switch(s){case 0:if(!p.d.gO().nr()){s=1
 break}p.Z(new A.ayl(p))
-o=p.e.a.a==="admin"&&p.f.a.a==="admin"
+o=p.e.a.a==="manager"&&p.f.a.a==="manager@tce"
 n=p.c
 if(o){n.toString
 A.aHJ(n,A.he(new A.aym(),null,t.z))}else n.a_(t.O).f.hB(B.aLF)
