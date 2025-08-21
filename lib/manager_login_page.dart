@@ -1,9 +1,142 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'admin_dashboard.dart';
+
+// Background message handler registration
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Flutter bindings & Firebase
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // Initialize local notifications plugin
+  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings =
+      InitializationSettings(android: initializationSettingsAndroid);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  // Show notification
+  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'booking_notifications',
+    'Booking Notifications',
+    channelDescription: 'Channel for booking updates',
+    importance: Importance.max,
+    priority: Priority.high,
+  );
+  const NotificationDetails notificationDetails =
+      NotificationDetails(android: androidDetails);
+
+  await flutterLocalNotificationsPlugin.show(
+    message.messageId.hashCode,
+    message.notification?.title ?? 'Background Notification',
+    message.notification?.body ?? '',
+    notificationDetails,
+  );
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // Register background message handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _loggedIn = false;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+    _setupNotifications();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool loggedIn = prefs.getBool('loggedIn') ?? false;
+    setState(() {
+      _loggedIn = loggedIn;
+    });
+  }
+
+  Future<void> _setupNotifications() async {
+    // Initialize local notifications
+    const AndroidInitializationSettings androidInit =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings =
+        InitializationSettings(android: androidInit);
+    await _localNotificationsPlugin.initialize(initSettings,
+        onDidReceiveNotificationResponse: (details) {
+      // Handle notification tapped logic here
+      print("Notification tapped: ${details.payload}");
+    });
+
+    // Request permission for iOS (optional on Android)
+    NotificationSettings settings = await _firebaseMessaging.requestPermission();
+    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+      print("User declined or has not accepted notification permissions");
+    }
+
+    // Listen for foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      _showNotification(message);
+    });
+
+    // Listen for notification taps when app is opened
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('Notification clicked with data: ${message.data}');
+      // Navigate to dashboard or some page if needed
+    });
+
+    // Subscribe to topic (optional)
+    await _firebaseMessaging.subscribeToTopic('bookings');
+  }
+
+  Future<void> _showNotification(RemoteMessage message) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'channel_id',
+      'Booking Notifications',
+      channelDescription: 'Channel for booking updates',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const NotificationDetails notificationDetails =
+        NotificationDetails(android: androidDetails);
+
+    await _localNotificationsPlugin.show(
+      message.messageId.hashCode,
+      message.notification?.title ?? 'New Notification',
+      message.notification?.body ?? '',
+      notificationDetails,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: _loggedIn ? const AdminDashboardPage() : const ManagerLoginPage(),
+    );
+  }
+}
 
 class ManagerLoginPage extends StatefulWidget {
   const ManagerLoginPage({super.key});
@@ -21,75 +154,12 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
 
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
 
   @override
-  void initState() {
-    super.initState();
-    _initializeFirebaseAndNotifications();
-  }
-
-  Future<void> _initializeFirebaseAndNotifications() async {
-    // Initialize local notifications
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
-    const initSettings = InitializationSettings(
-      android: androidInit,
-      iOS: iosInit,
-    );
-    await _localNotificationsPlugin.initialize(initSettings);
-
-    // Request permissions
-    await _requestPermissions();
-
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _showNotification(message);
-    });
-
-    // Handle background messages (when app is resumed via notification)
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      // Optionally navigate to a page based on the notification
-      print('Notification clicked with data: ${message.data}');
-    });
-
-    // Subscribe to a topic (optional if you're using direct FCM token)
-    await _firebaseMessaging.subscribeToTopic('bookings');
-  }
-
-  Future<void> _requestPermissions() async {
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      print("Notifications denied by user.");
-    }
-  }
-
-  Future<void> _showNotification(RemoteMessage message) async {
-    const androidDetails = AndroidNotificationDetails(
-      'channel_id',
-      'Booking Notifications',
-      channelDescription: 'Channel for booking updates',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
-    const iosDetails = DarwinNotificationDetails();
-    const notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _localNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      message.notification?.title ?? 'New Notification',
-      message.notification?.body ?? '',
-      notificationDetails,
-    );
+  void dispose() {
+    _username.dispose();
+    _password.dispose();
+    super.dispose();
   }
 
   Future<void> _storeFCMToken() async {
@@ -114,29 +184,30 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
       if (_username.text == 'manager' && _password.text == 'manager@tce') {
         await _storeFCMToken();
 
+        // Save login status in shared preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('loggedIn', true);
+
+        // Navigate to dashboard
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
         );
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invalid username or password')),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Login failed: $e')),
       );
     }
 
     setState(() => _isLoading = false);
-  }
-
-  @override
-  void dispose() {
-    _username.dispose();
-    _password.dispose();
-    super.dispose();
   }
 
   @override

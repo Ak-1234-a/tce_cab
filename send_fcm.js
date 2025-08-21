@@ -1,7 +1,4 @@
 const admin = require("firebase-admin");
-const fs = require("fs");
-
-// Load Firebase credentials
 const serviceAccount = require("./serviceAccountKey.json");
 
 admin.initializeApp({
@@ -15,12 +12,11 @@ async function main() {
   console.log("🔍 Checking for bookings where driverId is not assigned...");
 
   const snapshot = await db.collection("bookings").get();
-  console.log(snapshot.docs);
 
   // Filter documents with missing or empty driverId
   const bookingsWithoutDriver = snapshot.docs.filter(doc => {
     const data = doc.data();
-    return !data.driverId; // catches undefined, null, empty string
+    return !data.driverId; // undefined, null, or empty string
   });
 
   if (bookingsWithoutDriver.length === 0) {
@@ -45,9 +41,33 @@ async function main() {
     const message = {
       notification: {
         title: "🔔 Booking Needs Driver",
-        body: `${booking.resourcePerson || "Someone"} booked ${booking.facility || "a vehicle"} on ${booking.pickupDate} at ${booking.pickupTime}. No driver assigned yet.`,
+        body: `${booking.resourcePerson || "Someone"} booked ${booking.facility || "a vehicle"} on ${booking.pickupDate || "unknown date"} at ${booking.pickupTime || "unknown time"}. No driver assigned yet.`,
+      },
+      data: {
+        bookingId: doc.id,
+        resourcePerson: booking.resourcePerson || "",
+        facility: booking.facility || "",
+        pickupDate: booking.pickupDate || "",
+        pickupTime: booking.pickupTime || "",
+        click_action: "FLUTTER_NOTIFICATION_CLICK", // important for Flutter to detect taps on notification
       },
       token: token,
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "booking_notifications", // Make sure your Flutter app defines this channel
+          sound: "default",
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+            category: "BOOKING_CATEGORY",
+            "thread-id": "booking_thread",
+          },
+        },
+      },
     };
 
     try {
