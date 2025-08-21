@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const fs = require("fs");
+const { Timestamp } = require("firebase-admin/firestore");
 
 // Load Firebase credentials
 const serviceAccount = require("./serviceAccountKey.json");
@@ -12,10 +12,11 @@ const db = admin.firestore();
 const messaging = admin.messaging();
 
 const now = new Date();
-const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+const twoMinutesAgoDate = new Date(now.getTime() - 2 * 60 * 1000);
+const twoMinutesAgo = Timestamp.fromDate(twoMinutesAgoDate);
 
 async function main() {
-  console.log("Checking for new bookings since:", twoMinutesAgo);
+  console.log("Checking for new bookings since:", twoMinutesAgoDate.toISOString());
 
   const snapshot = await db.collection("Bookings")
     .where("timestamp", ">", twoMinutesAgo)
