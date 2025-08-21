@@ -43,8 +43,6 @@ async function main() {
   notification: {
     title: "🔔 Booking Needs Driver",
     body: `${booking.resourcePerson || "Someone"} booked ${booking.facility || "a vehicle"} on ${booking.pickupDate || "unknown date"} at ${booking.pickupTime || "unknown time"}. No driver assigned yet.`,
-    // Add channelId here for Android to show notification automatically
-    android_channel_id: "booking_notifications",
   },
   data: {
     bookingId: doc.id,
@@ -57,11 +55,8 @@ async function main() {
   android: {
     priority: "high",
     notification: {
-      channelId: "booking_notifications",
+      channelId: "booking_notifications", // Correct place to set channelId
       sound: "default",
-      // Optional: set default icon or color here
-      // icon: "ic_notification",
-      // color: "#FF0000",
     },
   },
   apns: {
