@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const { Timestamp } = require("firebase-admin/firestore");
+const fs = require("fs");
 
 // Load Firebase credentials
 const serviceAccount = require("./serviceAccountKey.json");
@@ -11,50 +11,49 @@ admin.initializeApp({
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-const now = new Date();
-const twoMinutesAgoDate = new Date(now.getTime() - 2 * 60 * 1000);
-const twoMinutesAgo = Timestamp.fromDate(twoMinutesAgoDate);
-
 async function main() {
-  console.log("Checking for new bookings since:", twoMinutesAgoDate.toISOString());
+  console.log("🔍 Checking for bookings where driverId is not assigned...");
 
-  const snapshot = await db.collection("Bookings")
-    .where("timestamp", ">", twoMinutesAgo)
-    .get();
+  const snapshot = await db.collection("Bookings").get();
 
-  if (snapshot.empty) {
-    console.log("No new bookings in the last 2 minutes.");
+  // Filter documents that don't have 'driverId' field
+  const bookingsWithoutDriver = snapshot.docs.filter(doc => {
+    const data = doc.data();
+    return !("driverId" in data);
+  });
+
+  if (bookingsWithoutDriver.length === 0) {
+    console.log("✅ No bookings without driverId.");
     return;
   }
 
-  // Get the FCM token of the manager
+  // Get manager FCM token
   const managerDoc = await db.collection("managers").doc("manager").get();
   const managerData = managerDoc.data();
 
   if (!managerData || !managerData.fcmToken) {
-    console.error("No FCM token found for manager.");
+    console.error("❌ No FCM token found for manager.");
     return;
   }
 
   const token = managerData.fcmToken;
 
-  // Send a notification for each new booking
-  for (const doc of snapshot.docs) {
+  for (const doc of bookingsWithoutDriver) {
     const booking = doc.data();
 
     const message = {
       notification: {
-        title: "New Booking Received",
-        body: `${booking.resourcePerson || "Someone"} booked ${booking.facility || "a vehicle"} on ${booking.pickupDate} at ${booking.pickupTime}`,
+        title: "🔔 Booking Needs Driver",
+        body: `${booking.resourcePerson || "Someone"} booked ${booking.facility || "a vehicle"} on ${booking.pickupDate} at ${booking.pickupTime}. No driver assigned yet.`,
       },
       token: token,
     };
 
     try {
       const response = await messaging.send(message);
-      console.log("Notification sent:", response);
+      console.log("✅ Notification sent:", response);
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("❌ Error sending message:", error);
     }
   }
 }
