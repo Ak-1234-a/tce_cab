@@ -16,10 +16,10 @@ async function main() {
 
   const snapshot = await db.collection("Bookings").get();
 
-  // Filter documents that don't have 'driverId' field
+  // Filter documents with missing or empty driverId
   const bookingsWithoutDriver = snapshot.docs.filter(doc => {
     const data = doc.data();
-    return !("driverId" in data);
+    return !data.driverId; // catches undefined, null, empty string
   });
 
   if (bookingsWithoutDriver.length === 0) {
