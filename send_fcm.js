@@ -14,7 +14,7 @@ const messaging = admin.messaging();
 async function main() {
   console.log("🔍 Checking for bookings where driverId is not assigned...");
 
-  const snapshot = await db.collection("Bookings").get();
+  const snapshot = await db.collection("bookings").get();
   console.log(snapshot.docs);
 
   // Filter documents with missing or empty driverId
