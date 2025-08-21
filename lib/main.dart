@@ -1,27 +1,26 @@
 import 'package:flutter/material.dart';
 import 'faculty_login_page.dart';
+import 'manager_login_page.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'manager_login_page.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint("🔔 Background Message: ${message.notification?.title}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  try {
-    final snapshot = await FirebaseFirestore.instance.collection('test').get();
-    debugPrint("Firestore connected. Docs found: ${snapshot.docs.length}");
-  } catch (e) {
-    debugPrint("Firestore test error: $e");
-  }
+  // Firebase Messaging background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(const MyApp());
 }
-
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -29,7 +28,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Home Page',
+      title: 'TCE Vehicle Booking',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
@@ -53,14 +52,11 @@ class LoginPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Logo
               const CircleAvatar(
                 radius: 50,
-                backgroundImage: AssetImage('assets/TCE.png'), // Make sure to add this image in assets
+                backgroundImage: AssetImage('assets/TCE.png'),
               ),
               const SizedBox(height: 24),
-
-              // App Title
               Text(
                 'TCE Vehicle Booking',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -69,8 +65,6 @@ class LoginPage extends StatelessWidget {
                     ),
               ),
               const SizedBox(height: 16),
-
-              // Subtitle
               Text(
                 'Please mention Login as',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -78,17 +72,16 @@ class LoginPage extends StatelessWidget {
                     ),
               ),
               const SizedBox(height: 32),
-
-              // Manager Login Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigate to Manager login
-Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ManagerLoginPage()),
-    );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ManagerLoginPage(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
@@ -104,16 +97,15 @@ Navigator.push(
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Faculty Login Button
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () {
-                    // Navigate to Faculty login
-                     Navigator.push(
+                    Navigator.push(
                       context,
-                     MaterialPageRoute(builder: (context) => const FacultyLoginPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const FacultyLoginPage(),
+                      ),
                     );
                   },
                   style: OutlinedButton.styleFrom(
@@ -125,7 +117,8 @@ Navigator.push(
                   ),
                   child: Text(
                     'Faculty Login',
-                    style: TextStyle(fontSize: 16, color: Colors.blue.shade700),
+                    style:
+                        TextStyle(fontSize: 16, color: Colors.blue.shade700),
                   ),
                 ),
               ),
