@@ -15,6 +15,7 @@ async function main() {
   console.log("🔍 Checking for bookings where driverId is not assigned...");
 
   const snapshot = await db.collection("Bookings").get();
+  console.log(snapshot);
 
   // Filter documents with missing or empty driverId
   const bookingsWithoutDriver = snapshot.docs.filter(doc => {
