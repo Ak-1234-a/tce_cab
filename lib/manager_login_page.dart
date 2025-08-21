@@ -113,7 +113,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _showNotification(RemoteMessage message) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'channel_id',
+      'booking_notifications',
       'Booking Notifications',
       channelDescription: 'Channel for booking updates',
       importance: Importance.max,

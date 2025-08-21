@@ -38,37 +38,43 @@ async function main() {
   for (const doc of bookingsWithoutDriver) {
     const booking = doc.data();
 
-    const message = {
-      notification: {
-        title: "🔔 Booking Needs Driver",
-        body: `${booking.resourcePerson || "Someone"} booked ${booking.facility || "a vehicle"} on ${booking.pickupDate || "unknown date"} at ${booking.pickupTime || "unknown time"}. No driver assigned yet.`,
+   const message = {
+  token: token,
+  notification: {
+    title: "🔔 Booking Needs Driver",
+    body: `${booking.resourcePerson || "Someone"} booked ${booking.facility || "a vehicle"} on ${booking.pickupDate || "unknown date"} at ${booking.pickupTime || "unknown time"}. No driver assigned yet.`,
+    // Add channelId here for Android to show notification automatically
+    android_channel_id: "booking_notifications",
+  },
+  data: {
+    bookingId: doc.id,
+    resourcePerson: booking.resourcePerson || "",
+    facility: booking.facility || "",
+    pickupDate: booking.pickupDate || "",
+    pickupTime: booking.pickupTime || "",
+    click_action: "FLUTTER_NOTIFICATION_CLICK",
+  },
+  android: {
+    priority: "high",
+    notification: {
+      channelId: "booking_notifications",
+      sound: "default",
+      // Optional: set default icon or color here
+      // icon: "ic_notification",
+      // color: "#FF0000",
+    },
+  },
+  apns: {
+    payload: {
+      aps: {
+        sound: "default",
+        category: "BOOKING_CATEGORY",
+        "thread-id": "booking_thread",
       },
-      data: {
-        bookingId: doc.id,
-        resourcePerson: booking.resourcePerson || "",
-        facility: booking.facility || "",
-        pickupDate: booking.pickupDate || "",
-        pickupTime: booking.pickupTime || "",
-        click_action: "FLUTTER_NOTIFICATION_CLICK", // important for Flutter to detect taps on notification
-      },
-      token: token,
-      android: {
-        priority: "high",
-        notification: {
-          channelId: "booking_notifications", // Make sure your Flutter app defines this channel
-          sound: "default",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: "default",
-            category: "BOOKING_CATEGORY",
-            "thread-id": "booking_thread",
-          },
-        },
-      },
-    };
+    },
+  },
+};
+
 
     try {
       const response = await messaging.send(message);
