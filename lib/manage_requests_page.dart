@@ -1,10 +1,15 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 class ManageRequestsPage extends StatelessWidget {
   const ManageRequestsPage({super.key});
+
+  static const String brevoApiKey =
+      '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';
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +28,10 @@ class ManageRequestsPage extends StatelessWidget {
 
           if (docs.isEmpty) {
             return Center(
-              child: Text('No pending requests.',
-                  style: GoogleFonts.poppins(fontSize: 16)),
+              child: Text(
+                'No pending requests.',
+                style: GoogleFonts.poppins(fontSize: 16),
+              ),
             );
           }
 
@@ -70,6 +77,7 @@ class ManageRequestsPage extends StatelessWidget {
 
   Future<void> _onAccept(
       BuildContext ctx, String id, Map<String, dynamic> data) async {
+    // Vehicle selection logic
     final vehicleSnap = await FirebaseFirestore.instance
         .collection('vehicles')
         .where('isFree', isEqualTo: true)
@@ -113,6 +121,7 @@ class ManageRequestsPage extends StatelessWidget {
     );
     if (selectedVehicleId == null || selectedVehicle == null) return;
 
+    // Driver selection logic
     final driverSnap = await FirebaseFirestore.instance
         .collection('drivers')
         .where('isFree', isEqualTo: true)
@@ -154,7 +163,8 @@ class ManageRequestsPage extends StatelessWidget {
     );
     if (selectedDriverId == null || selectedDriver == null) return;
 
-    await FirebaseFirestore.instance.collection('bookings').doc(id).update({
+    // Update Firestore documents
+    final bookingUpdates = {
       'status': 'accepted',
       'vehicleId': selectedVehicleId,
       'vehicleName': selectedVehicle?['name'],
@@ -162,7 +172,8 @@ class ManageRequestsPage extends StatelessWidget {
       'driverId': selectedDriverId,
       'driverName': selectedDriver?['name'],
       'driverPhone': selectedDriver?['phone'],
-    });
+    };
+    await FirebaseFirestore.instance.collection('bookings').doc(id).update(bookingUpdates);
     await FirebaseFirestore.instance
         .collection('vehicles')
         .doc(selectedVehicleId)
@@ -172,12 +183,10 @@ class ManageRequestsPage extends StatelessWidget {
         .doc(selectedDriverId)
         .update({'isFree': false});
 
-    final phone =
-        selectedDriver?['phone']?.toString().replaceAll(RegExp(r'\D'), '') ??
-            '';
+    // Send WhatsApp message to the driver
+    final phone = selectedDriver?['phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
     if (phone.isNotEmpty) {
-      final msg = Uri.encodeComponent('''
-Hi ${selectedDriver?['name']},
+      final msg = Uri.encodeComponent('''Hi ${selectedDriver?['name']},
 
 You have been assigned a new booking.
 
@@ -193,10 +202,13 @@ TCE Manager
       final uri = Uri.parse("https://wa.me/91$phone?text=$msg");
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint('Could not launch WhatsApp URL: $uri');
       }
     }
 
-    await _sendEmail(
+    // Send email via Brevo
+    final emailResult = await _sendEmailViaBrevo(
       to: data['facultyEmail'],
       subject: 'Booking Accepted: ${data['eventName']}',
       body: '''
@@ -215,8 +227,15 @@ TCE Manager
 ''',
     );
 
-    _showDialog(ctx, 'Success',
-        'Booking accepted; WhatsApp message sent to driver and email sent to faculty.');
+    if (emailResult) {
+      _showDialog(ctx, 'Success',
+          'Booking accepted.\n\n• WhatsApp sent to driver.\n• Email sent to faculty.');
+      debugPrint('✅ Email sent successfully to ${data['facultyEmail']}');
+    } else {
+      _showDialog(ctx, 'Partial Success',
+          'Booking accepted.\n\n• WhatsApp sent to driver.\n• Failed to send email.');
+      debugPrint('❌ Email sending failed for: ${data['facultyEmail']}');
+    }
   }
 
   Future<void> _onReject(
@@ -238,6 +257,7 @@ TCE Manager
             onPressed: () async {
               final reason = reasonCtrl.text.trim();
               if (reason.isEmpty) return;
+
               await FirebaseFirestore.instance
                   .collection('bookings')
                   .doc(id)
@@ -247,7 +267,7 @@ TCE Manager
               });
               Navigator.pop(ctx);
 
-              await _sendEmail(
+              final emailResult = await _sendEmailViaBrevo(
                 to: data['facultyEmail'],
                 subject: 'Booking Rejected: ${data['eventName']}',
                 body: '''
@@ -264,8 +284,13 @@ TCE Manager
 ''',
               );
 
-              _showSnackbar(ctx,
-                  'Request rejected; email sent to faculty.');
+              if (emailResult) {
+                _showSnackbar(ctx, 'Request rejected; email sent to faculty.');
+                debugPrint('✅ Rejection email sent successfully');
+              } else {
+                _showSnackbar(ctx, 'Request rejected; failed to send email.');
+                debugPrint('❌ Rejection email failed for: ${data['facultyEmail']}');
+              }
             },
             child: const Text('Submit'),
           ),
@@ -274,24 +299,48 @@ TCE Manager
     );
   }
 
- Future<void> _sendEmail({
-  required String? to,
-  required String subject,
-  required String body,
-}) async {
-  final encodedSubject = Uri.encodeComponent(subject);
-  final encodedBody = Uri.encodeComponent(body);
+  Future<bool> _sendEmailViaBrevo({
+    required String? to,
+    required String subject,
+    required String body,
+  }) async {
+    if (to == null || to.isEmpty) {
+      debugPrint('❌ Email "to" address is empty');
+      return false;
+    }
 
-  final uriString = 'mailto:${to ?? ''}?subject=$encodedSubject&body=$encodedBody';
-  final uri = Uri.parse(uriString);
+    final url = Uri.parse('https://api.brevo.com/v3/smtp/email');
+    final payload = {
+      "sender": {"name": "TCE Manager", "email": "transport@gen.tce.edu"},
+      "to": [
+        {"email": to}
+      ],
+      "subject": subject,
+      "htmlContent": "<html><body><pre>$body</pre></body></html>",
+    };
 
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri);
-  } else {
-    debugPrint("Could not launch email client.");
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json',
+        },
+        body: jsonEncode(payload),
+      );
+      if (response.statusCode == 201) {
+        debugPrint('✅ Email successfully sent to $to');
+        return true;
+      } else {
+        debugPrint('❌ Brevo error: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ Exception while sending email via Brevo: $e');
+      return false;
+    }
   }
-}
-
 
   void _showDialog(BuildContext ctx, String title, String msg) {
     showDialog(
@@ -401,11 +450,13 @@ class BookingCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(data['eventName'] ?? 'Event',
-                  style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.blue[900])),
+              Text(
+                data['eventName'] ?? 'Event',
+                style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue[900]),
+              ),
               const SizedBox(height: 12),
               _row(Icons.calendar_month, 'Pickup:',
                   '${data['pickupDate']} ${data['pickupTime']} at ${data['pickupLocation']}'),
@@ -427,8 +478,7 @@ class BookingCard extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade600),
                     label: Text('Accept',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600)),
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),
