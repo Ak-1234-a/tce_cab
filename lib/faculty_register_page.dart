@@ -14,8 +14,10 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   bool _isLoading = false;
 
@@ -29,14 +31,17 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
     final password = _passwordController.text.trim();
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('faculty_logins')
-          .doc(email)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('faculty_logins')
+              .doc(email)
+              .get();
 
       if (doc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account already exists for this email.')),
+          const SnackBar(
+            content: Text('Account already exists for this email.'),
+          ),
         );
         return;
       }
@@ -44,23 +49,19 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
       await FirebaseFirestore.instance
           .collection('faculty_logins')
           .doc(email)
-          .set({
-        'name': name,
-        'email': email,
-        'password': password,
-      });
+          .set({'name': name, 'email': email, 'password': password,'phone': _phoneController.text.trim()});
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Registration successful!')));
 
       Navigator.pop(context);
     } catch (e, stackTrace) {
       debugPrint('❌ Firestore error: $e');
       debugPrintStack(stackTrace: stackTrace);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -137,9 +138,9 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                   Text(
                     'Register Faculty',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade800,
-                        ),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade800,
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -150,8 +151,7 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                       labelText: 'Name',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Enter name' : null,
+                    validator: (value) => value!.isEmpty ? 'Enter name' : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -172,6 +172,26 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Phone Number
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty){
+                        return 'Enter phone number';
+                      }
+                      if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
+                        return 'Enter a valid 10-digit phone number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
                   // Password
                   TextFormField(
                     controller: _passwordController,
@@ -180,9 +200,11 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                       labelText: 'Password',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) => value!.length < 6
-                        ? 'Password must be at least 6 characters'
-                        : null,
+                    validator:
+                        (value) =>
+                            value!.length < 6
+                                ? 'Password must be at least 6 characters'
+                                : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -215,12 +237,18 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Register',
-                              style: TextStyle(fontSize: 16, color: Colors.white),
-                            ),
+                      child:
+                          _isLoading
+                              ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                              : const Text(
+                                'Register',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
                     ),
                   ),
                 ],

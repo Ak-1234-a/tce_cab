@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'admin_dashboard.dart';
 
 // Background message handler registration
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Flutter bindings & Firebase
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +18,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings =
-      InitializationSettings(android: initializationSettingsAndroid);
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   // Show notification
@@ -29,8 +31,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     importance: Importance.max,
     priority: Priority.high,
   );
-  const NotificationDetails notificationDetails =
-      NotificationDetails(android: androidDetails);
+  const NotificationDetails notificationDetails = NotificationDetails(
+    android: androidDetails,
+  );
 
   await flutterLocalNotificationsPlugin.show(
     message.messageId.hashCode,
@@ -79,48 +82,82 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _setupNotifications() async {
-    // Initialize local notifications
+    // 1. Create Android notification channel
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'booking_notifications',
+      'Booking Notifications',
+      description: 'Channel for booking updates',
+      importance: Importance.high,
+    );
+
+    final androidPlugin =
+        _localNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(channel);
+    }
+
+    // 2. Initialize local notifications
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initSettings =
-        InitializationSettings(android: androidInit);
-    await _localNotificationsPlugin.initialize(initSettings,
-        onDidReceiveNotificationResponse: (details) {
-      // Handle notification tapped logic here
-      print("Notification tapped: ${details.payload}");
-    });
 
-    // Request permission for iOS (optional on Android)
-    NotificationSettings settings = await _firebaseMessaging.requestPermission();
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidInit,
+      // You can add iOS if needed: iOS: iosInitSettings,
+    );
+
+    await _localNotificationsPlugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (details) {
+        // Handle tap on notification
+        print("Notification tapped: ${details.payload}");
+        // Optional: Navigate using a global key or service
+      },
+    );
+
+    // 3. Request permissions (iOS only, optional on Android)
+    NotificationSettings settings =
+        await _firebaseMessaging.requestPermission();
     if (settings.authorizationStatus != AuthorizationStatus.authorized) {
       print("User declined or has not accepted notification permissions");
     }
 
-    // Listen for foreground messages
+    // 4. Handle messages in foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _showNotification(message);
+      print("Foreground message received: ${message.messageId}");
+      _showNotification(message); // Custom method you defined
     });
 
-    // Listen for notification taps when app is opened
+    // 5. Handle notification taps (when app is opened from background)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('Notification clicked with data: ${message.data}');
-      // Navigate to dashboard or some page if needed
+      // TODO: Navigate to specific page using message.data or payload
     });
 
-    // Subscribe to topic (optional)
-    await _firebaseMessaging.subscribeToTopic('bookings');
+    // 6. Subscribe to a topic (optional)
+    try {
+      await _firebaseMessaging.subscribeToTopic('bookings');
+      print('Subscribed to bookings topic');
+    } catch (e) {
+      print('Failed to subscribe to topic: $e');
+    }
   }
 
   Future<void> _showNotification(RemoteMessage message) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'booking_notifications',
-      'Booking Notifications',
-      channelDescription: 'Channel for booking updates',
-      importance: Importance.max,
-      priority: Priority.high,
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'booking_notifications',
+          'Booking Notifications',
+          channelDescription: 'Channel for booking updates',
+          importance: Importance.max,
+          priority: Priority.high,
+        );
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
     );
-    const NotificationDetails notificationDetails =
-        NotificationDetails(android: androidDetails);
 
     await _localNotificationsPlugin.show(
       message.messageId.hashCode,
@@ -202,9 +239,9 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
     }
 
     setState(() => _isLoading = false);
@@ -228,9 +265,9 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
               Text(
                 'Manager Login',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.blue.shade800,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: Colors.blue.shade800,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 32),
               Form(
@@ -243,8 +280,8 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
                         labelText: 'Username',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) =>
-                          value!.isEmpty ? 'Enter username' : null,
+                      validator:
+                          (value) => value!.isEmpty ? 'Enter username' : null,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
@@ -254,38 +291,42 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
                         labelText: 'Password',
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscureText
-                              ? Icons.visibility
-                              : Icons.visibility_off),
-                          onPressed: () =>
-                              setState(() => _obscureText = !_obscureText),
+                          icon: Icon(
+                            _obscureText
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed:
+                              () =>
+                                  setState(() => _obscureText = !_obscureText),
                         ),
                       ),
-                      validator: (value) =>
-                          value!.isEmpty ? 'Enter password' : null,
+                      validator:
+                          (value) => value!.isEmpty ? 'Enter password' : null,
                     ),
                     const SizedBox(height: 30),
                     _isLoading
                         ? const CircularProgressIndicator()
                         : SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _login,
-                              style: ElevatedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                backgroundColor: Colors.blue.shade700,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _login,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: Colors.blue.shade700,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text(
-                                'Login',
-                                style: TextStyle(
-                                    fontSize: 16, color: Colors.white),
+                            ),
+                            child: const Text(
+                              'Login',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
                               ),
                             ),
                           ),
+                        ),
                   ],
                 ),
               ),

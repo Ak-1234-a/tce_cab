@@ -6,6 +6,7 @@ import 'drivers_page.dart'; // <-- Import the Drivers Page
 import 'report_schedule_page.dart';
 import 'vehicles_page.dart';
 import 'manager_login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -133,15 +134,20 @@ class AdminDashboardPage extends StatelessWidget {
               _buildDrawerItem(
                 icon: Icons.logout,
                 label: 'Logout',
-                onTap: () {
-                  // Handle logout
-                  Navigator.pop(context); // Close drawer first
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const ManagerLoginPage()),
-      (route) => false,
-    );
-                },
+                onTap: () async {
+  Navigator.pop(context); // Close the drawer
+
+  // Clear login flag
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('loggedIn'); // or prefs.clear();
+
+  // Navigate to login page and remove all previous routes
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const ManagerLoginPage()),
+    (route) => false,
+  );
+},
               ),
             ],
           ),

@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'splash_screen.dart';
 
 // Initialize FlutterLocalNotificationsPlugin
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -161,7 +162,7 @@ class _MyAppState extends State<MyApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const LoginPage(),
+      home: const SplashScreen(),
     );
   }
 }

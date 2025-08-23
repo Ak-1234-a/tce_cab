@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'view_bookings_page.dart';
 import 'calendar_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'faculty_login_page.dart';
 
 class BookingPage extends StatefulWidget {
   final String facultyEmail;
@@ -111,9 +113,9 @@ class _BookingPageState extends State<BookingPage> {
         _dropDate == null ||
         _dropTime == null ||
         _selectedPersons == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
       return;
     }
 
@@ -142,9 +144,9 @@ class _BookingPageState extends State<BookingPage> {
       );
       _clearForm();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -196,7 +198,9 @@ class _BookingPageState extends State<BookingPage> {
               child: Text(
                 _facultyName[0],
                 style: const TextStyle(
-                    color: Colors.blue, fontWeight: FontWeight.bold),
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -221,18 +225,15 @@ class _BookingPageState extends State<BookingPage> {
                 label: 'Facility',
                 icon: Icons.directions_car,
                 value: _selectedFacility,
-                items: [
-                  'Car',
-                  'EV Auto',
-                  'EV Buggy',
-                  'Sumo',
-                  'Bus',
-                ],
+                items: ['Car', 'EV Auto', 'EV Buggy', 'Sumo', 'Bus'],
                 onChanged: (v) => setState(() => _selectedFacility = v),
               ),
               _buildTextField(_eventNameController, 'Event Name', Icons.event),
               _buildTextField(
-                  _resourcePersonController, 'Resource Person', Icons.person),
+                _resourcePersonController,
+                'Resource Person',
+                Icons.person,
+              ),
               // Forward Through label (non-editable)
               Row(
                 children: [
@@ -257,7 +258,7 @@ class _BookingPageState extends State<BookingPage> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
               // Department Dropdown
               _buildDropdown(
@@ -271,9 +272,15 @@ class _BookingPageState extends State<BookingPage> {
             const SizedBox(height: 20),
             _buildCard('Vehicle Booking', [
               _buildTextField(
-                  _pickupLocationController, 'Pickup Location', Icons.my_location),
+                _pickupLocationController,
+                'Pickup Location',
+                Icons.my_location,
+              ),
               _buildTextField(
-                  _dropLocationController, 'Drop Location', Icons.location_on),
+                _dropLocationController,
+                'Drop Location',
+                Icons.location_on,
+              ),
               _buildDateTimeRow(true),
               _buildDateTimeRow(false),
               _buildDropdown(
@@ -349,59 +356,72 @@ class _BookingPageState extends State<BookingPage> {
   }
 
   Drawer _buildDrawer() => Drawer(
-        child: ListView(
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue.shade800),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 30,
-                    backgroundImage: AssetImage('assets/TCE.png'),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    _facultyName,
-                    style: GoogleFonts.openSans(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ],
+    child: ListView(
+      children: [
+        DrawerHeader(
+          decoration: BoxDecoration(color: Colors.blue.shade800),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 30,
+                backgroundImage: AssetImage('assets/TCE.png'),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.list),
-              title: const Text('My Bookings'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ViewBookingsPage(email: widget.facultyEmail),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Calendar'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => CalendarPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () => Navigator.popUntil(context, (r) => r.isFirst),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Text(
+                _facultyName,
+                style: GoogleFonts.openSans(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+        ListTile(
+          leading: const Icon(Icons.list),
+          title: const Text('My Bookings'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ViewBookingsPage(email: widget.facultyEmail),
+              ),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.calendar_today),
+          title: const Text('Calendar'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => CalendarPage()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.logout),
+          title: const Text('Logout'),
+          onTap: () async {
+            Navigator.pop(context); // Close the drawer
+
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('isFacultyLoggedIn'); // Match login key
+            await prefs.remove('facultyEmail'); // Optional but clean
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const FacultyLoginPage()),
+              (route) => false,
+            );
+          },
+        ),
+      ],
+    ),
+  );
 
   Widget _buildCard(String title, List<Widget> fields) {
     return Card(
@@ -411,7 +431,8 @@ class _BookingPageState extends State<BookingPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children:
+              [
                 Text(
                   title,
                   style: GoogleFonts.openSans(
@@ -423,17 +444,23 @@ class _BookingPageState extends State<BookingPage> {
                 const SizedBox(height: 16),
               ] +
               fields
-                  .map((w) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: w,
-                      ))
+                  .map(
+                    (w) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: w,
+                    ),
+                  )
                   .toList(),
         ),
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController ctl, String label, IconData icon) {
+  Widget _buildTextField(
+    TextEditingController ctl,
+    String label,
+    IconData icon,
+  ) {
     return TextFormField(
       controller: ctl,
       decoration: InputDecoration(
@@ -444,77 +471,76 @@ class _BookingPageState extends State<BookingPage> {
       ),
       style: GoogleFonts.openSans(),
     );
-  }Widget _buildDropdown({
-  required String label,
-  required IconData icon,
-  required String? value,
-  required List<String> items,
-  required void Function(String?) onChanged,
-}) {
-  return SizedBox(
-    width: double.infinity, // makes dropdown take max width possible
-    child: DropdownButtonFormField<String>(
-      value: value,
-      menuMaxHeight: 300,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.blue),
-        labelText: label,
-        labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
-        border: const OutlineInputBorder(),
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
+    return SizedBox(
+      width: double.infinity, // makes dropdown take max width possible
+      child: DropdownButtonFormField<String>(
+        value: value,
+        menuMaxHeight: 300,
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.blue),
+          labelText: label,
+          labelStyle: GoogleFonts.openSans(color: Colors.blue.shade900),
+          border: const OutlineInputBorder(),
+        ),
+        items:
+            items
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, style: GoogleFonts.openSans()),
+                  ),
+                )
+                .toList(),
+        onChanged: onChanged,
+        style: GoogleFonts.openSans(color: Colors.black),
+        isExpanded:
+            true, // important to allow dropdown to expand fully inside SizedBox
       ),
-      items: items
-          .map(
-            (e) => DropdownMenuItem(
-              value: e,
-              child: Text(
-                e,
-                style: GoogleFonts.openSans(),
-              ),
+    );
+  }
+
+  Widget _buildDateTimeRow(bool isPickup) {
+    final date = isPickup ? _pickupDate : _dropDate;
+    final time = isPickup ? _pickupTime : _dropTime;
+    return Row(
+      children: [
+        Expanded(
+          child: TextFormField(
+            readOnly: true,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.calendar_today, color: Colors.blue),
+              labelText: isPickup ? 'Pickup Date' : 'Drop Date',
+              border: const OutlineInputBorder(),
+              hintText: date != null ? _formatDate(date) : 'Select Date',
             ),
-          )
-          .toList(),
-      onChanged: onChanged,
-      style: GoogleFonts.openSans(color: Colors.black),
-      isExpanded: true,  // important to allow dropdown to expand fully inside SizedBox
-    ),
-  );
-}
-
-
- Widget _buildDateTimeRow(bool isPickup) {
-  final date = isPickup ? _pickupDate : _dropDate;
-  final time = isPickup ? _pickupTime : _dropTime;
-  return Row(
-    children: [
-      Expanded(
-        child: TextFormField(
-          readOnly: true,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.calendar_today, color: Colors.blue),
-            labelText: isPickup ? 'Pickup Date' : 'Drop Date',
-            border: const OutlineInputBorder(),
-            hintText: date != null ? _formatDate(date) : 'Select Date',
+            onTap: () => _selectDate(context, isPickup),
           ),
-          onTap: () => _selectDate(context, isPickup),
         ),
-      ),
-      const SizedBox(width: 16),
-      Expanded(
-        child: TextFormField(
-          readOnly: true,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.access_time, color: Colors.blue),
-            labelText: isPickup ? 'Pickup Time' : 'Drop Time',
-            border: const OutlineInputBorder(),
-            hintText: time != null ? _formatTime(time) : 'Select Time',
+        const SizedBox(width: 16),
+        Expanded(
+          child: TextFormField(
+            readOnly: true,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.access_time, color: Colors.blue),
+              labelText: isPickup ? 'Pickup Time' : 'Drop Time',
+              border: const OutlineInputBorder(),
+              hintText: time != null ? _formatTime(time) : 'Select Time',
+            ),
+            onTap: () => _selectTime(context, isPickup),
           ),
-          onTap: () => _selectTime(context, isPickup),
         ),
-      ),
-    ],
-  );
-}
-
+      ],
+    );
+  }
 }
 
 extension StringCasingExtension on String {
