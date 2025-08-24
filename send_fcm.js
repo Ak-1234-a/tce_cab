@@ -16,7 +16,7 @@ async function main() {
   // Filter documents with missing or empty driverId
   const bookingsWithoutDriver = snapshot.docs.filter(doc => {
     const data = doc.data();
-    return !data.driverId; // undefined, null, or empty string
+    return !data.driverId && data.status !== "rejected";
   });
 
   if (bookingsWithoutDriver.length === 0) {
