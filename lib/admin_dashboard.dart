@@ -152,7 +152,7 @@ class AdminDashboardPage extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
             ManageRequestsPage(),
           ],

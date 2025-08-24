@@ -181,7 +181,7 @@ class _BookingPageState extends State<BookingPage> {
             ),
             const SizedBox(width: 10),
             Text(
-              'TCE Cab Booking',
+              'TCE Vehicle Booking',
               style: GoogleFonts.lobster(
                 fontSize: 22,
                 color: Colors.white,

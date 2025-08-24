@@ -3,13 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';  // <-- new import
 
-class ManageRequestsPage extends StatelessWidget {
+class ManageRequestsPage extends StatefulWidget {
   const ManageRequestsPage({super.key});
 
-  static const String brevoApiKey =
-      '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';
+  @override
+  State<ManageRequestsPage> createState() => _ManageRequestsPageState();
+}
+
+class _ManageRequestsPageState extends State<ManageRequestsPage> {
+  // TODO: Replace with your WhatsApp Cloud API details
+  // Removed phoneNumberId and accessToken since not used anymore for WhatsApp API
 
   @override
   Widget build(BuildContext context) {
@@ -65,8 +70,8 @@ class ManageRequestsPage extends StatelessWidget {
               return BookingCardWrapper(
                 docId: doc.id,
                 data: data,
-                onAccept: () => _onAccept(ctx, doc.id, data),
-                onReject: () => _onReject(ctx, doc.id, data),
+                onAccept: () => _onAccept(context, doc.id, data),
+                onReject: () => _onReject(context, doc.id, data),
               );
             },
           );
@@ -76,7 +81,7 @@ class ManageRequestsPage extends StatelessWidget {
   }
 
   Future<void> _onAccept(
-      BuildContext ctx, String id, Map<String, dynamic> data) async {
+      BuildContext context, String id, Map<String, dynamic> data) async {
     // Vehicle selection logic
     final vehicleSnap = await FirebaseFirestore.instance
         .collection('vehicles')
@@ -85,15 +90,19 @@ class ManageRequestsPage extends StatelessWidget {
         .get();
 
     if (vehicleSnap.docs.isEmpty) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-          const SnackBar(content: Text('No free vehicles available')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No free vehicles available')));
+      }
       return;
     }
 
     String? selectedVehicleId;
     Map<String, dynamic>? selectedVehicle;
-    await showDialog(
-      context: ctx,
+
+    // Show vehicle selection dialog synchronously
+    selectedVehicle = await showDialog<Map<String, dynamic>?>(  
+      context: context,
       builder: (_) => AlertDialog(
         title: Text('Select Vehicle',
             style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
@@ -108,9 +117,7 @@ class ManageRequestsPage extends StatelessWidget {
                   title: Text('${vd['name']} – ${vd['numberPlate']}'),
                   subtitle: Text(vd['brand'] ?? ''),
                   onTap: () {
-                    selectedVehicleId = v.id;
-                    selectedVehicle = vd;
-                    Navigator.pop(ctx);
+                    Navigator.of(context).pop({'id': v.id, 'data': vd});
                   },
                 ),
               );
@@ -119,23 +126,32 @@ class ManageRequestsPage extends StatelessWidget {
         ),
       ),
     );
-    if (selectedVehicleId == null || selectedVehicle == null) return;
+
+    if (selectedVehicle == null) return;
+
+    selectedVehicleId = selectedVehicle['id'] as String?;
+    final vehicleData = selectedVehicle['data'] as Map<String, dynamic>?;
+
+    if (selectedVehicleId == null || vehicleData == null) return;
 
     // Driver selection logic
     final driverSnap = await FirebaseFirestore.instance
         .collection('drivers')
         .where('isFree', isEqualTo: true)
         .get();
+
     if (driverSnap.docs.isEmpty) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-          const SnackBar(content: Text('No free drivers available')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No free drivers available')));
+      }
       return;
     }
 
-    String? selectedDriverId;
     Map<String, dynamic>? selectedDriver;
-    await showDialog(
-      context: ctx,
+
+    selectedDriver = await showDialog<Map<String, dynamic>?>(  
+      context: context,
       builder: (_) => AlertDialog(
         title: Text('Select Driver',
             style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
@@ -150,9 +166,7 @@ class ManageRequestsPage extends StatelessWidget {
                   title: Text(dd['name'] ?? ''),
                   subtitle: Text(dd['phone'] ?? ''),
                   onTap: () {
-                    selectedDriverId = d.id;
-                    selectedDriver = dd;
-                    Navigator.pop(ctx);
+                    Navigator.of(context).pop({'id': d.id, 'data': dd});
                   },
                 ),
               );
@@ -161,19 +175,29 @@ class ManageRequestsPage extends StatelessWidget {
         ),
       ),
     );
-    if (selectedDriverId == null || selectedDriver == null) return;
+
+    if (selectedDriver == null) return;
+
+    final selectedDriverId = selectedDriver['id'] as String?;
+    final driverData = selectedDriver['data'] as Map<String, dynamic>?;
+
+    if (selectedDriverId == null || driverData == null) return;
 
     // Update Firestore documents
     final bookingUpdates = {
       'status': 'accepted',
       'vehicleId': selectedVehicleId,
-      'vehicleName': selectedVehicle?['name'],
-      'vehicleNumberPlate': selectedVehicle?['numberPlate'],
+      'vehicleName': vehicleData['name'],
+      'vehicleNumberPlate': vehicleData['numberPlate'],
       'driverId': selectedDriverId,
-      'driverName': selectedDriver?['name'],
-      'driverPhone': selectedDriver?['phone'],
+      'driverName': driverData['name'],
+      'driverPhone': driverData['phone'],
     };
-    await FirebaseFirestore.instance.collection('bookings').doc(id).update(bookingUpdates);
+
+    await FirebaseFirestore.instance
+        .collection('bookings')
+        .doc(id)
+        .update(bookingUpdates);
     await FirebaseFirestore.instance
         .collection('vehicles')
         .doc(selectedVehicleId)
@@ -183,31 +207,50 @@ class ManageRequestsPage extends StatelessWidget {
         .doc(selectedDriverId)
         .update({'isFree': false});
 
-    // Send WhatsApp message to the driver
-    final phone = selectedDriver?['phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
-    if (phone.isNotEmpty) {
-      final msg = Uri.encodeComponent('''Hi ${selectedDriver?['name']},
+   final phoneRaw = driverData['phone']?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
+final phoneNumber = '91$phoneRaw'; // Add country code if needed
 
-You have been assigned a new booking.
+// Fetch faculty phone using facultyEmail
+String? facultyPhone;
 
-Event: ${data['eventName']}
-Pickup: ${data['pickupDate']} at ${data['pickupTime']} from ${data['pickupLocation']}
-Drop: ${data['dropDate']} at ${data['dropTime']} to ${data['dropLocation']}
-Persons: ${data['numberOfPersons']}
-Vehicle: ${selectedVehicle?['name']} – ${selectedVehicle?['numberPlate']}
+if (data['facultyEmail'] != null) {
+  final facultySnap = await FirebaseFirestore.instance
+      .collection('faculty_logins')
+      .where('email', isEqualTo: data['facultyEmail'])
+      .limit(1)
+      .get();
+
+  if (facultySnap.docs.isNotEmpty) {
+    facultyPhone = facultySnap.docs.first.data()['phone']?.toString();
+  }
+}
+
+if (phoneRaw.isNotEmpty) {
+  final message = '''
+Hello ${driverData['name'] ?? 'Driver'},
+
+You have been assigned a new booking:
+
+Event: ${data['eventName'] ?? ''}
+Pickup: ${data['pickupDate'] ?? ''} at ${data['pickupTime'] ?? ''} from ${data['pickupLocation'] ?? ''}
+Drop: ${data['dropDate'] ?? ''} at ${data['dropTime'] ?? ''} to ${data['dropLocation'] ?? ''}
+Vehicle: ${vehicleData['name']} – ${vehicleData['numberPlate']}
+
+Please contact the faculty
+Faculty Email: ${data['facultyEmail'] ?? ''}
+Faculty no : ${facultyPhone ?? 'Not available'}
+
+Please be prepared.
 
 Regards,
 TCE Manager
-''');
-      final uri = Uri.parse("https://wa.me/91$phone?text=$msg");
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        debugPrint('Could not launch WhatsApp URL: $uri');
-      }
-    }
+''';
 
-    // Send email via Brevo
+  await _launchWhatsApp(phoneNumber, message);
+}
+
+
+    // Send email via Brevo (unchanged)
     final emailResult = await _sendEmailViaBrevo(
       to: data['facultyEmail'],
       subject: 'Booking Accepted: ${data['eventName']}',
@@ -219,104 +262,60 @@ Your booking request titled "${data['eventName']}" has been accepted.
 Pickup: ${data['pickupDate']} at ${data['pickupTime']} from ${data['pickupLocation']}
 Drop: ${data['dropDate']} at ${data['dropTime']} to ${data['dropLocation']}
 
-Driver: ${selectedDriver?['name']} (${selectedDriver?['phone']})
-Vehicle: ${selectedVehicle?['name']} – ${selectedVehicle?['numberPlate']}
+Driver: ${driverData['name']} (${driverData['phone']})
+Vehicle: ${vehicleData['name']} – ${vehicleData['numberPlate']}
 
 Regards,
 TCE Manager
 ''',
     );
 
+    if (!mounted) return;
+
     if (emailResult) {
-      _showDialog(ctx, 'Success',
-          'Booking accepted.\n\n• WhatsApp sent to driver.\n• Email sent to faculty.');
-      debugPrint('✅ Email sent successfully to ${data['facultyEmail']}');
+      _showDialog(context, 'Success',
+          'Booking accepted.\n\n• WhatsApp opened for driver.\n• Email sent to faculty.',
+          data);
     } else {
-      _showDialog(ctx, 'Partial Success',
-          'Booking accepted.\n\n• WhatsApp sent to driver.\n• Failed to send email.');
-      debugPrint('❌ Email sending failed for: ${data['facultyEmail']}');
+      _showDialog(context, 'Partial Success',
+          'Booking accepted.\n\n• WhatsApp opened for driver.\n• Failed to send email.',
+          data);
     }
   }
 
-  Future<void> _onReject(
-      BuildContext ctx, String id, Map<String, dynamic> data) async {
-    final reasonCtrl = TextEditingController();
-    await showDialog(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        title: const Text('Reject Request'),
-        content: TextField(
-          controller: reasonCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-              hintText: 'Rejection reason', border: OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final reason = reasonCtrl.text.trim();
-              if (reason.isEmpty) return;
+  Future<void> _launchWhatsApp(String phoneNumber, String message) async {
+    final encodedMessage = Uri.encodeComponent(message);
+    final whatsappUrl = Uri.parse('https://wa.me/$phoneNumber?text=$encodedMessage');
 
-              await FirebaseFirestore.instance
-                  .collection('bookings')
-                  .doc(id)
-                  .update({
-                'status': 'rejected',
-                'rejectionReason': reason,
-              });
-              Navigator.pop(ctx);
-
-              final emailResult = await _sendEmailViaBrevo(
-                to: data['facultyEmail'],
-                subject: 'Booking Rejected: ${data['eventName']}',
-                body: '''
-Dear Sir/Madam,
-
-We regret to inform you that your booking request "${data['eventName']}" has been rejected.
-
-Reason: $reason
-
-Please contact transport admin for details.
-
-Regards,
-TCE Manager
-''',
-              );
-
-              if (emailResult) {
-                _showSnackbar(ctx, 'Request rejected; email sent to faculty.');
-                debugPrint('✅ Rejection email sent successfully');
-              } else {
-                _showSnackbar(ctx, 'Request rejected; failed to send email.');
-                debugPrint('❌ Rejection email failed for: ${data['facultyEmail']}');
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
+    if (await canLaunchUrl(whatsappUrl)) {
+      await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint('Could not launch WhatsApp');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    }
   }
 
+  // Leave the _sendEmailViaBrevo unchanged as per your instruction
   Future<bool> _sendEmailViaBrevo({
-    required String? to,
+    required String to,
     required String subject,
     required String body,
   }) async {
-    if (to == null || to.isEmpty) {
-      debugPrint('❌ Email "to" address is empty');
-      return false;
-    }
-
+    const brevoApiKey =
+        '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'; // Replace with your API key
     final url = Uri.parse('https://api.brevo.com/v3/smtp/email');
-    final payload = {
+    debugPrint('📩 Sending email to $to with subject "$subject"');
+    final Map<String, dynamic> emailData = {
       "sender": {"name": "TCE Manager", "email": "transport@gen.tce.edu"},
       "to": [
         {"email": to}
       ],
       "subject": subject,
-      "htmlContent": "<html><body><pre>$body</pre></body></html>",
+      "htmlContent": "<p>${body.replaceAll('\n', '<br>')}</p>"
     };
 
     try {
@@ -327,39 +326,180 @@ TCE Manager
           'api-key': brevoApiKey,
           'content-type': 'application/json',
         },
-        body: jsonEncode(payload),
+        body: jsonEncode(emailData),
       );
-      if (response.statusCode == 201) {
-        debugPrint('✅ Email successfully sent to $to');
-        return true;
-      } else {
-        debugPrint('❌ Brevo error: ${response.statusCode} - ${response.body}');
-        return false;
-      }
+
+      debugPrint('📩 Brevo Response Code: ${response.statusCode}');
+      debugPrint('📩 Brevo Response Body: ${response.body}');
+      return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
-      debugPrint('❌ Exception while sending email via Brevo: $e');
+      debugPrint('❌ Email sending failed: $e');
       return false;
     }
   }
 
-  void _showDialog(BuildContext ctx, String title, String msg) {
+//changes by arun
+  Future<void> _onReject(
+    BuildContext context, String id, Map<String, dynamic> data) async {
+  final reasonController = TextEditingController();
+
+  final reason = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Reject Booking',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Please enter the reason for rejection:',
+              style: GoogleFonts.poppins()),
+          const SizedBox(height: 12),
+          TextField(
+            controller: reasonController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Enter reason here...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final text = reasonController.text.trim();
+            if (text.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Rejection reason is required')),
+              );
+              return;
+            }
+            Navigator.of(context).pop(text);
+          },
+          child: const Text('Submit'),
+        ),
+      ],
+    ),
+  );
+
+  if (reason == null || reason.isEmpty) return;
+
+  // Update booking with rejection and reason
+  await FirebaseFirestore.instance.collection('bookings').doc(id).update({
+    'status': 'rejected',
+    'rejectionReason': reason,
+  });
+
+  // Send email to faculty
+  final emailSent = await _sendEmailViaBrevo(
+    to: data['facultyEmail'],
+    subject: 'Booking Rejected: ${data['eventName']}',
+    body: '''
+Dear Sir/Madam,
+
+We regret to inform you that your booking request titled "${data['eventName']}" has been rejected.
+
+Reason: $reason
+
+Pickup: ${data['pickupDate']} at ${data['pickupTime']} from ${data['pickupLocation']}
+Drop: ${data['dropDate']} at ${data['dropTime']} to ${data['dropLocation']}
+
+If you have any questions, please contact the transport office.
+
+Regards,  
+TCE Manager
+''',
+  );
+
+  if (!mounted) return;
+
+  if (emailSent) {
+    _showDialog(
+      context,
+      'Booking Rejected',
+      'The booking request has been rejected and an email was sent to the faculty.\n\nReason: $reason',
+      data,
+    );
+  } else {
+    _showDialog(
+      context,
+      'Booking Rejected',
+      'The booking request has been rejected.\n\n⚠️ Failed to send email.\n\nReason: $reason',
+      data,
+    );
+  }
+}
+
+
+//changes by arun ends here
+
+  void _showDialog(
+      BuildContext context, String title, String message, Map<String, dynamic> data) {
     showDialog(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(msg),
+      context: context,
+      builder: (context) => AlertDialog(
+        title:
+            Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text(message, style: GoogleFonts.poppins()),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close dialog before async op
+              final success = await _sendEmailToPrincipal(data);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(success
+                      ? 'Email sent to principal.'
+                      : 'Failed to send email to principal.')));
+            },
+            child: const Text('Send Mail to Principal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          )
         ],
       ),
     );
   }
 
-  void _showSnackbar(BuildContext ctx, String msg) {
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg)));
+  Future<bool> _sendEmailToPrincipal(Map<String, dynamic> data) async {
+    const principalEmail = 'arunkumarje@student.tce.edu';
+    final subject = 'Booking Info: ${data['eventName'] ?? 'Event'}';
+
+    final body = '''
+Dear Principal,
+
+The following vehicle booking has been accepted:
+
+Event: ${data['eventName']}
+Faculty: ${data['facultyEmail']}
+Facility: ${data['facility']}
+Pickup: ${data['pickupDate']} at ${data['pickupTime']} from ${data['pickupLocation']}
+Drop: ${data['dropDate']} at ${data['dropTime']} to ${data['dropLocation']}
+No. of Persons: ${data['numberOfPersons']}
+Resource Person: ${data['resourcePerson']}
+Forwarded Through: ${data['forwardThrough']}
+
+This message is for your information.
+
+Regards,  
+TCE Transport Manager
+''';
+
+    return await _sendEmailViaBrevo(
+      to: principalEmail,
+      subject: subject,
+      body: body,
+    );
   }
 }
-
 class BookingCardWrapper extends StatelessWidget {
   final String docId;
   final Map<String, dynamic> data;
