@@ -299,7 +299,11 @@ class _DriversPageState extends State<DriversPage> {
                                         style: GoogleFonts.poppins(fontSize: 14),
                                       ),
                                       Text(
-                                        "Vehicle Type: ${bd['vehicle'] ?? 'N/A'}",
+                                        "Vehicle Name: ${bd['vehicle'] ?? 'N/A'}",
+                                        style: GoogleFonts.poppins(fontSize: 14),
+                                      ),
+                                      Text(
+                                        "Vehicle Number Plate: ${bd['vehicleNumberPlate'] ?? 'N/A'}",
                                         style: GoogleFonts.poppins(fontSize: 14),
                                       ),
                                     ],

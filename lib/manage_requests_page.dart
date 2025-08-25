@@ -251,7 +251,7 @@ TCE Manager
 
 
     // Send email via Brevo (unchanged)
-    final emailResult = await _sendEmailViaBrevo(
+    final emailResult = await sendEmailViaBackend(
       to: data['facultyEmail'],
       subject: 'Booking Accepted: ${data['eventName']}',
       body: '''
@@ -284,59 +284,45 @@ TCE Manager
   }
 
   Future<void> _launchWhatsApp(String phoneNumber, String message) async {
-    final encodedMessage = Uri.encodeComponent(message);
-    final whatsappUrl = Uri.parse('https://wa.me/$phoneNumber?text=$encodedMessage');
+    try {
+      final encodedMessage = Uri.encodeComponent(message);
 
-    if (await canLaunchUrl(whatsappUrl)) {
-      await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-    } else {
-      debugPrint('Could not launch WhatsApp');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open WhatsApp')),
-        );
+      // Android intent URL
+      final intentUrl = Uri.parse(
+          "intent://send?phone=$phoneNumber&text=$encodedMessage#Intent;scheme=smsto;package=com.whatsapp;end");
+
+      if (await canLaunchUrl(intentUrl)) {
+        await launchUrl(intentUrl, mode: LaunchMode.externalApplication);
+        debugPrint("✅ WhatsApp launched via Android intent");
+      } else {
+        debugPrint("❌ Cannot launch WhatsApp via intent. Fallbacking to web.");
+        final webUrl = Uri.parse("https://wa.me/$phoneNumber?text=$encodedMessage");
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       }
+    } catch (e) {
+      debugPrint("🚨 Exception while launching WhatsApp: $e");
     }
   }
 
   // Leave the _sendEmailViaBrevo unchanged as per your instruction
-  Future<bool> _sendEmailViaBrevo({
-    required String to,
-    required String subject,
-    required String body,
-  }) async {
-    const brevoApiKey =
-        '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'; // Replace with your API key
-    final url = Uri.parse('https://api.brevo.com/v3/smtp/email');
-    debugPrint('📩 Sending email to $to with subject "$subject"');
-    final Map<String, dynamic> emailData = {
-      "sender": {"name": "TCE Manager", "email": "transport@gen.tce.edu"},
-      "to": [
-        {"email": to}
-      ],
-      "subject": subject,
-      "htmlContent": "<p>${body.replaceAll('\n', '<br>')}</p>"
-    };
+Future<bool> sendEmailViaBackend({
+  required String to,
+  required String subject,
+  required String body,
+}) async {
+  final response = await http.post(
+    Uri.parse('https://email-sender-six-rho.vercel.app/api/send-email'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'to': to,
+      'subject': subject,
+      'body': body,
+    }),
+  );
 
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'accept': 'application/json',
-          'api-key': brevoApiKey,
-          'content-type': 'application/json',
-        },
-        body: jsonEncode(emailData),
-      );
+  return response.statusCode == 200;
+}
 
-      debugPrint('📩 Brevo Response Code: ${response.statusCode}');
-      debugPrint('📩 Brevo Response Body: ${response.body}');
-      return response.statusCode == 201 || response.statusCode == 200;
-    } catch (e) {
-      debugPrint('❌ Email sending failed: $e');
-      return false;
-    }
-  }
 
 //changes by arun
   Future<void> _onReject(
@@ -397,7 +383,7 @@ TCE Manager
   });
 
   // Send email to faculty
-  final emailSent = await _sendEmailViaBrevo(
+  final emailSent = await  sendEmailViaBackend(
     to: data['facultyEmail'],
     subject: 'Booking Rejected: ${data['eventName']}',
     body: '''
@@ -470,7 +456,7 @@ TCE Manager
   }
 
   Future<bool> _sendEmailToPrincipal(Map<String, dynamic> data) async {
-    const principalEmail = 'arunkumarje@student.tce.edu';
+    const principalEmail = 'principal@tce.edu';
     final subject = 'Booking Info: ${data['eventName'] ?? 'Event'}';
 
     final body = '''
@@ -493,7 +479,7 @@ Regards,
 TCE Transport Manager
 ''';
 
-    return await _sendEmailViaBrevo(
+    return await sendEmailViaBackend(
       to: principalEmail,
       subject: subject,
       body: body,

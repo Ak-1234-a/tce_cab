@@ -8,10 +8,24 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Queries (needed for Android 11+ to check installed apps) -->
+    <queries>
+        <!-- Support both WhatsApp & WhatsApp Business -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+
+        <!-- Keep existing PROCESS_TEXT query -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <application
-        android:label="tce_cab"
+        android:label="TCE Vehicle"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
 
         <!-- Default notification channel id used by Firebase -->
         <meta-data
@@ -19,11 +33,9 @@
             android:value="booking_notifications" />
 
         <!--
-          IMPORTANT:
-          If you have created your own FirebaseMessagingService subclass in Android native code,
-          declare it here and set android:exported="true".
-          If not, you can remove this service declaration,
-          as the Flutter Firebase Messaging plugin handles it internally.
+          If you have your own FirebaseMessagingService subclass, declare it here
+          and set android:exported="true".
+          Otherwise, Firebase Messaging plugin will handle internally.
         -->
         <!--
         <service
@@ -36,7 +48,7 @@
         </service>
         -->
 
-        <!-- MainActivity declaration -->
+        <!-- MainActivity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -46,22 +58,20 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+
+            <!-- Normal theme for Flutter -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- Flutter embedding version -->
         <meta-data android:name="flutterEmbedding" android:value="2" />
     </application>
 
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT" />
-            <data android:mimeType="text/plain" />
-        </intent>
-    </queries>
 </manifest>

@@ -119,11 +119,38 @@ class _BookingPageState extends State<BookingPage> {
       return;
     }
 
+    // Combine date and time into DateTime objects
+    final pickupDateTime = DateTime(
+      _pickupDate!.year,
+      _pickupDate!.month,
+      _pickupDate!.day,
+      _pickupTime!.hour,
+      _pickupTime!.minute,
+    );
+
+    final dropDateTime = DateTime(
+      _dropDate!.year,
+      _dropDate!.month,
+      _dropDate!.day,
+      _dropTime!.hour,
+      _dropTime!.minute,
+    );
+
+    // Check if drop is after pickup
+    if (!dropDateTime.isAfter(pickupDateTime)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Drop date/time must be after pickup date/time'),
+        ),
+      );
+      return;
+    }
+
     final data = {
       'facultyEmail': widget.facultyEmail,
       'eventName': _eventNameController.text,
       'resourcePerson': _resourcePersonController.text,
-      'forwardThrough': 'Manager', // always Manager
+      'forwardThrough': 'Manager',
       'facility': _selectedFacility,
       'pickupLocation': _pickupLocationController.text,
       'dropLocation': _dropLocationController.text,
@@ -181,7 +208,7 @@ class _BookingPageState extends State<BookingPage> {
             ),
             const SizedBox(width: 10),
             Text(
-              'TCE Vehicle Booking',
+              'TCE Vehicle',
               style: GoogleFonts.lobster(
                 fontSize: 22,
                 color: Colors.white,
