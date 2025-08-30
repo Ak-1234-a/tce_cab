@@ -219,7 +219,7 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
 
     try {
       if (_username.text == 'manager' && _password.text == 'manager@tce') {
-        await _storeFCMToken();
+        //await _storeFCMToken();
 
         // Save login status in shared preferences
         final prefs = await SharedPreferences.getInstance();
