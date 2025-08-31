@@ -15,6 +15,13 @@ class _DriversPageState extends State<DriversPage> {
   final TextEditingController _phoneController = TextEditingController();
   String? editingDocId;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
   void _showDriverDialog({String? name, String? phone, String? docId}) {
     _nameController.text = name ?? '';
     _phoneController.text = phone ?? '';
@@ -40,8 +47,7 @@ class _DriversPageState extends State<DriversPage> {
               decoration: InputDecoration(
                 labelText: 'Name',
                 prefixIcon: const Icon(Icons.person, color: Colors.blue),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
             const SizedBox(height: 12),
@@ -51,8 +57,7 @@ class _DriversPageState extends State<DriversPage> {
               decoration: InputDecoration(
                 labelText: 'Phone Number',
                 prefixIcon: const Icon(Icons.phone, color: Colors.blue),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ],
@@ -70,8 +75,7 @@ class _DriversPageState extends State<DriversPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue[800],
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () async {
               final name = _nameController.text.trim();
@@ -79,13 +83,14 @@ class _DriversPageState extends State<DriversPage> {
               if (name.isEmpty || phone.isEmpty) return;
 
               if (editingDocId == null) {
-                await _firestore.collection('drivers').add({
+                await _firestore.collection('new_drivers').add({
                   'name': name,
                   'phone': phone,
-                  'isFree': true,  // changed to true when adding new driver
+                  'pickup_bookings': [],
+                  'drop_bookings': [],
                 });
               } else {
-                await _firestore.collection('drivers').doc(editingDocId).update({
+                await _firestore.collection('new_drivers').doc(editingDocId).update({
                   'name': name,
                   'phone': phone,
                 });
@@ -106,20 +111,211 @@ class _DriversPageState extends State<DriversPage> {
     );
   }
 
-  void _deleteDriver(String docId) {
-    _firestore.collection('drivers').doc(docId).delete();
+  Future<Map<String, dynamic>?> _getVehicleDetails(String vehicleId) async {
+    if (vehicleId.isEmpty) return null;
+    try {
+      final docSnapshot = await _firestore.collection('new_vehicles').doc(vehicleId).get();
+      if (docSnapshot.exists) {
+        return docSnapshot.data();
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching vehicle details: $e");
+      return null;
+    }
   }
 
-  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _getCurrentBooking(
-      String phone) async {
-    final snap = await _firestore
-        .collection('bookings')
-        .where('driverPhone', isEqualTo: phone)
-        .where('status', isEqualTo: 'accepted')
-        .limit(1)
-        .get();
+  void _showPendingBookingsDialog(List<dynamic> pickupBookings, List<dynamic> dropBookings) {
+    // Filter bookings to only show those with 'Pending' status
+    final pendingPickupBookings = pickupBookings.where((booking) => booking['tripStatus'] == 'Pending').toList();
+    final pendingDropBookings = dropBookings.where((booking) => booking['tripStatus'] == 'Pending').toList();
 
-    return snap.docs.isNotEmpty ? snap.docs.first : null;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          'Pending Trips',
+          style: GoogleFonts.poppins(
+            color: Colors.blue[800],
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (pendingPickupBookings.isNotEmpty) ...[
+                Text(
+                  'Pending Pickups',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blueGrey[700],
+                  ),
+                ),
+                const Divider(),
+                ...pendingPickupBookings.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  Map<String, dynamic> booking = Map<String, dynamic>.from(entry.value);
+
+                  return FutureBuilder<Map<String, dynamic>?>(
+                    future: _getVehicleDetails(booking['vehicleId']),
+                    builder: (context, vehicleSnapshot) {
+                      final vehicleData = vehicleSnapshot.data;
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        elevation: 2,
+                        child: ExpansionTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue[50],
+                            child: Text(
+                              '${index + 1}',
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                            ),
+                          ),
+                          title: Text(
+                            'From: ${booking['pickupFrom'] ?? 'N/A'}',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            'To: ${booking['pickupTo'] ?? 'N/A'}',
+                            style: GoogleFonts.poppins(color: Colors.grey[700]),
+                          ),
+                          children: [
+                            if (vehicleSnapshot.connectionState == ConnectionState.waiting)
+                              const LinearProgressIndicator(),
+                            if (vehicleData != null)
+                              ListTile(
+                                title: Text(
+                                  "Vehicle Details",
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue[900],
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  "Type: ${vehicleData['name'] ?? 'N/A'}\nNumber Plate: ${vehicleData['numberPlate'] ?? 'N/A'}",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ListTile(
+                              title: Text(
+                                "Date: ${booking['pickupDate'] ?? 'N/A'}",
+                                style: GoogleFonts.poppins(),
+                              ),
+                            ),
+                            ListTile(
+                              title: Text(
+                                "Time: ${booking['pickupTime'] ?? 'N/A'}",
+                                style: GoogleFonts.poppins(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
+                const SizedBox(height: 16),
+              ],
+              if (pendingDropBookings.isNotEmpty) ...[
+                Text(
+                  'Pending Drops',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blueGrey[700],
+                  ),
+                ),
+                const Divider(),
+                ...pendingDropBookings.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  Map<String, dynamic> booking = Map<String, dynamic>.from(entry.value);
+
+                  return FutureBuilder<Map<String, dynamic>?>(
+                    future: _getVehicleDetails(booking['vehicleId']),
+                    builder: (context, vehicleSnapshot) {
+                      final vehicleData = vehicleSnapshot.data;
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        elevation: 2,
+                        child: ExpansionTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue[50],
+                            child: Text(
+                              '${index + 1}',
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                            ),
+                          ),
+                          title: Text(
+                            'From: ${booking['dropFrom'] ?? 'N/A'}',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            'To: ${booking['dropTo'] ?? 'N/A'}',
+                            style: GoogleFonts.poppins(color: Colors.grey[700]),
+                          ),
+                          children: [
+                            if (vehicleSnapshot.connectionState == ConnectionState.waiting)
+                              const LinearProgressIndicator(),
+                            if (vehicleData != null)
+                              ListTile(
+                                title: Text(
+                                  "Vehicle Details",
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue[900],
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  "Type: ${vehicleData['name'] ?? 'N/A'}\nNumber Plate: ${vehicleData['numberPlate'] ?? 'N/A'}",
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ListTile(
+                              title: Text(
+                                "Date: ${booking['dropDate'] ?? 'N/A'}",
+                                style: GoogleFonts.poppins(),
+                              ),
+                            ),
+                            ListTile(
+                              title: Text(
+                                "Time: ${booking['dropTime'] ?? 'N/A'}",
+                                style: GoogleFonts.poppins(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
+              ],
+              if (pendingPickupBookings.isEmpty && pendingDropBookings.isEmpty)
+                Text(
+                  'No pending Trips found.',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: GoogleFonts.poppins(color: Colors.blue[800])),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteDriver(String docId) {
+    _firestore.collection('new_drivers').doc(docId).delete();
   }
 
   @override
@@ -143,7 +339,7 @@ class _DriversPageState extends State<DriversPage> {
       body: Stack(
         children: [
           StreamBuilder<QuerySnapshot>(
-            stream: _firestore.collection('drivers').snapshots(),
+            stream: _firestore.collection('new_drivers').snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -166,18 +362,22 @@ class _DriversPageState extends State<DriversPage> {
                 itemBuilder: (context, index) {
                   final doc = drivers[index];
                   final data = doc.data() as Map<String, dynamic>;
-                  final isFree = data['isFree'] ?? false;
-                  final phone = data['phone'] ?? '';
+                  final List<dynamic> pickupBookings = data['pickup_bookings'] ?? [];
+                  final List<dynamic> dropBookings = data['drop_bookings'] ?? [];
+
+                  // Check if any booking has 'Pending' status
+                  final bool hasPendingBookings = pickupBookings.any((booking) => booking['tripStatus'] == 'Pending') ||
+                      dropBookings.any((booking) => booking['tripStatus'] == 'Pending');
+
+                  final bool isAssigned = hasPendingBookings;
 
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     elevation: 4,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     color: Colors.white,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 16, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -186,8 +386,7 @@ class _DriversPageState extends State<DriversPage> {
                               CircleAvatar(
                                 radius: 28,
                                 backgroundColor: Colors.blue.shade100,
-                                child: const Icon(Icons.person,
-                                    color: Colors.blue, size: 30),
+                                child: const Icon(Icons.person, color: Colors.blue, size: 30),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -204,7 +403,7 @@ class _DriversPageState extends State<DriversPage> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      phone,
+                                      data['phone'] ?? '',
                                       style: GoogleFonts.poppins(
                                           fontSize: 15, color: Colors.grey[800]),
                                     ),
@@ -212,18 +411,16 @@ class _DriversPageState extends State<DriversPage> {
                                     Row(
                                       children: [
                                         Icon(
-                                          isFree
-                                              ? Icons.check_circle
-                                              : Icons.cancel,
-                                          color: isFree ? Colors.green : Colors.red,
+                                          isAssigned ? Icons.cancel : Icons.check_circle,
+                                          color: isAssigned ? Colors.red : Colors.green,
                                           size: 18,
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          isFree ? 'Available' : 'Occupied',
+                                          isAssigned ? 'Assigned' : 'Available',
                                           style: GoogleFonts.poppins(
                                             fontSize: 14,
-                                            color: isFree ? Colors.green : Colors.red,
+                                            color: isAssigned ? Colors.red : Colors.green,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -232,85 +429,42 @@ class _DriversPageState extends State<DriversPage> {
                                   ],
                                 ),
                               ),
-                              Column(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue),
-                                    onPressed: () => _showDriverDialog(
-                                      name: data['name'],
-                                      phone: data['phone'],
-                                      docId: doc.id,
+                              if (!isAssigned) // Don't show edit/delete if driver is assigned
+                                Column(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () => _showDriverDialog(
+                                        name: data['name'],
+                                        phone: data['phone'],
+                                        docId: doc.id,
+                                      ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => _deleteDriver(doc.id),
-                                  ),
-                                ],
-                              ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deleteDriver(doc.id),
+                                    ),
+                                  ],
+                                ),
                             ],
                           ),
-                          if (!isFree)
-                            FutureBuilder<QueryDocumentSnapshot<Map<String, dynamic>>?>(
-                              future: _getCurrentBooking(phone),
-                              builder: (context, bSnap) {
-                                if (bSnap.connectionState == ConnectionState.waiting) {
-                                  return const Padding(
-                                    padding: EdgeInsets.only(top: 12),
-                                    child: LinearProgressIndicator(),
-                                  );
-                                }
-                                final booking = bSnap.data;
-                                if (booking == null) return const SizedBox();
-
-                                final bd = booking.data();
-                                return Container(
-                                  margin: const EdgeInsets.only(top: 12),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Current Booking",
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.blueGrey,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "Event: ${bd['eventName'] ?? 'N/A'}",
-                                        style: GoogleFonts.poppins(fontSize: 14),
-                                      ),
-                                      Text(
-                                        "Drop Date: ${bd['dropDate'] ?? 'N/A'}",
-                                        style: GoogleFonts.poppins(fontSize: 14),
-                                      ),
-                                      Text(
-                                        "Drop Time: ${bd['dropTime'] ?? 'N/A'}",
-                                        style: GoogleFonts.poppins(fontSize: 14),
-                                      ),
-                                      Text(
-                                        "Drop Location: ${bd['dropLocation'] ?? 'N/A'}",
-                                        style: GoogleFonts.poppins(fontSize: 14),
-                                      ),
-                                      Text(
-                                        "Vehicle Name: ${bd['vehicleName'] ?? 'N/A'}",
-                                        style: GoogleFonts.poppins(fontSize: 14),
-                                      ),
-                                      Text(
-                                        "Vehicle Number Plate: ${bd['vehicleNumberPlate'] ?? 'N/A'}",
-                                        style: GoogleFonts.poppins(fontSize: 14),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                          if (hasPendingBookings) ...[ // Only show button if there are pending bookings
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => _showPendingBookingsDialog(pickupBookings, dropBookings),
+                              icon: const Icon(Icons.event, color: Colors.white),
+                              label: Text(
+                                'View Pending Trips',
+                                style: GoogleFonts.poppins(color: Colors.white),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[800],
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
                             ),
+                          ],
                         ],
                       ),
                     ),
@@ -319,8 +473,6 @@ class _DriversPageState extends State<DriversPage> {
               );
             },
           ),
-
-          // Add New Driver button positioned bottom-left
           Positioned(
             bottom: 16,
             left: 16,
