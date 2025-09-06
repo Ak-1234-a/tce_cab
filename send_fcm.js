@@ -9,18 +9,18 @@ const db = admin.firestore();
 const messaging = admin.messaging();
 
 async function main() {
-  console.log("🔍 Checking for bookings with pending status...");
+  console.log("🔍 Checking for bookings with Pending status...");
 
   const snapshot = await db.collection("new_bookings").get();
 
-  // Filter documents with pending pickup or drop status
-  const pendingBookings = snapshot.docs.filter(doc => {
+  // Filter documents with Pending pickup or drop status
+  const PendingBookings = snapshot.docs.filter(doc => {
     const data = doc.data();
-    return data.pickup_status === 'pending' || (data.tripType === 'Round Trip' && data.drop_status === 'pending');
+    return data.pickup_status === 'Pending' || (data.tripType === 'Round Trip' && data.drop_status === 'Pending');
   });
 
-  if (pendingBookings.length === 0) {
-    console.log("✅ No bookings with pending status.");
+  if (PendingBookings.length === 0) {
+    console.log("✅ No bookings with Pending status.");
     return;
   }
 
@@ -35,11 +35,11 @@ async function main() {
 
   const token = managerData.fcmToken;
 
-  for (const doc of pendingBookings) {
+  for (const doc of PendingBookings) {
     const booking = doc.data();
 
-    // Check for pending pickup booking
-    if (booking.pickup_status === 'pending') {
+    // Check for Pending pickup booking
+    if (booking.pickup_status === 'Pending') {
       const message = {
         token: token,
         notification: {
@@ -81,8 +81,8 @@ async function main() {
       }
     }
 
-    // Check for pending drop booking (for round trips)
-    if (booking.tripType === 'Round Trip' && booking.drop_status === 'pending') {
+    // Check for Pending drop booking (for round trips)
+    if (booking.tripType === 'Round Trip' && booking.drop_status === 'Pending') {
       const message = {
         token: token,
         notification: {
