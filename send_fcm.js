@@ -25,7 +25,7 @@ async function main() {
   }
 
   // Get manager FCM token
-  const managerDoc = await db.collection("managers").doc("manager").get();
+  const managerDoc = await db.collection("new_managers").doc("manager").get();
   const managerData = managerDoc.data();
 
   if (!managerData || !managerData.fcmToken) {
