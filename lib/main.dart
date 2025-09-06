@@ -63,6 +63,14 @@ Future<void> _createNotificationChannel() async {
 
 // Show notification for foreground messages
 Future<void> _showFlutterNotification(RemoteMessage message) async {
+  // Use the notification payload from the message to show a local notification
+  final notification = message.notification;
+
+  if (notification == null) {
+      debugPrint("Message does not have a notification payload. Skipping.");
+      return;
+  }
+
   const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
     'booking_notifications',
     'Booking Notifications',
@@ -76,9 +84,9 @@ Future<void> _showFlutterNotification(RemoteMessage message) async {
       NotificationDetails(android: androidDetails);
 
   await flutterLocalNotificationsPlugin.show(
-    message.messageId.hashCode,
-    message.notification?.title ?? 'New Notification',
-    message.notification?.body ?? '',
+    notification.hashCode,
+    notification.title,
+    notification.body,
     notificationDetails,
   );
 }
@@ -246,8 +254,7 @@ class LoginPage extends StatelessWidget {
                   ),
                   child: Text(
                     'Faculty/Staff Login',
-                    style:
-                        TextStyle(fontSize: 16, color: Colors.blue.shade700),
+                    style: TextStyle(fontSize: 16, color: Colors.blue.shade700),
                   ),
                 ),
               ),

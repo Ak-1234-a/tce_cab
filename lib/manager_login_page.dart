@@ -7,23 +7,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'admin_dashboard.dart';
 
-// Background message handler registration
+// Initialize FlutterLocalNotificationsPlugin at the top level
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Initialize Flutter bindings & Firebase
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(); // It's correct to initialize here for the background isolate
+  debugPrint("🔔 [Background] Message received: ${message.messageId}");
 
-  // Initialize local notifications plugin
-  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  // Show notification
   const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
     'booking_notifications',
     'Booking Notifications',
@@ -43,9 +36,31 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
+// Main function
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Create notification channel for Android 8.0+
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'booking_notifications',
+    'Booking Notifications',
+    description: 'Channel for booking updates',
+    importance: Importance.high,
+  );
+  final androidPlugin = flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+  await androidPlugin?.createNotificationChannel(channel);
+
+  // Initialize the plugin for foreground notifications
+  const AndroidInitializationSettings androidInit =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initSettings = InitializationSettings(
+    android: androidInit,
+    // Add iOS if you need it
+  );
+  await flutterLocalNotificationsPlugin.initialize(initSettings);
 
   // Register background message handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -62,15 +77,12 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _loggedIn = false;
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
     _checkLoginStatus();
-    _setupNotifications();
+    _setupFCM(); // Call FCM setup here
   }
 
   Future<void> _checkLoginStatus() async {
@@ -81,89 +93,50 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<void> _setupNotifications() async {
-    // 1. Create Android notification channel
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'booking_notifications',
-      'Booking Notifications',
-      description: 'Channel for booking updates',
-      importance: Importance.high,
-    );
+  Future<void> _setupFCM() async {
+    // Request notification permissions
+    await FirebaseMessaging.instance.requestPermission();
+    
+    // Listen for foreground messages
+    FirebaseMessaging.onMessage.listen(_showNotification);
 
-    final androidPlugin =
-        _localNotificationsPlugin
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >();
-
-    if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(channel);
-    }
-
-    // 2. Initialize local notifications
-    const AndroidInitializationSettings androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidInit,
-      // You can add iOS if needed: iOS: iosInitSettings,
-    );
-
-    await _localNotificationsPlugin.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // Handle tap on notification
-        print("Notification tapped: ${details.payload}");
-        // Optional: Navigate using a global key or service
-      },
-    );
-
-    // 3. Request permissions (iOS only, optional on Android)
-    NotificationSettings settings =
-        await _firebaseMessaging.requestPermission();
-    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-      print("User declined or has not accepted notification permissions");
-    }
-
-    // 4. Handle messages in foreground
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("Foreground message received: ${message.messageId}");
-      _showNotification(message); // Custom method you defined
-    });
-
-    // 5. Handle notification taps (when app is opened from background)
+    // Handle notification taps when the app is in the background
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('Notification clicked with data: ${message.data}');
-      // TODO: Navigate to specific page using message.data or payload
+      debugPrint('🔗 Notification tapped: ${message.data}');
+      // TODO: Add navigation logic here
     });
 
-    // 6. Subscribe to a topic (optional)
-    try {
-      await _firebaseMessaging.subscribeToTopic('bookings');
-      print('Subscribed to bookings topic');
-    } catch (e) {
-      print('Failed to subscribe to topic: $e');
-    }
+    // Check if app was opened from a terminated state
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      if (message != null) {
+        debugPrint('🚀 App launched via notification: ${message.data}');
+        // TODO: Add navigation logic here
+      }
+    });
   }
 
   Future<void> _showNotification(RemoteMessage message) async {
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'booking_notifications',
-          'Booking Notifications',
-          channelDescription: 'Channel for booking updates',
-          importance: Importance.max,
-          priority: Priority.high,
-        );
+    final notification = message.notification;
+    if (notification == null) return;
+
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'booking_notifications',
+      'Booking Notifications',
+      channelDescription: 'Channel for booking updates',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+    );
     const NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
     );
 
-    await _localNotificationsPlugin.show(
-      message.messageId.hashCode,
-      message.notification?.title ?? 'New Notification',
-      message.notification?.body ?? '',
+    await flutterLocalNotificationsPlugin.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
       notificationDetails,
+      payload: message.data['bookingId'],
     );
   }
 
@@ -202,7 +175,7 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
   Future<void> _storeFCMToken() async {
     final token = await _firebaseMessaging.getToken();
     if (token == null) {
-      print('Failed to get FCM token');
+      debugPrint('Failed to get FCM token');
       return;
     }
 
@@ -210,6 +183,7 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
       'fcmToken': token,
       'loginTime': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    debugPrint('FCM Token stored successfully');
   }
 
   Future<void> _login() async {
@@ -219,7 +193,7 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
 
     try {
       if (_username.text == 'manager' && _password.text == 'manager@tce') {
-        //await _storeFCMToken();
+        await _storeFCMToken();
 
         // Save login status in shared preferences
         final prefs = await SharedPreferences.getInstance();
@@ -265,9 +239,9 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
               Text(
                 'Manager Login',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.blue.shade800,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: Colors.blue.shade800,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 32),
               Form(
@@ -297,8 +271,7 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
                                 : Icons.visibility_off,
                           ),
                           onPressed:
-                              () =>
-                                  setState(() => _obscureText = !_obscureText),
+                              () => setState(() => _obscureText = !_obscureText),
                         ),
                       ),
                       validator:
@@ -308,25 +281,25 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
                     _isLoading
                         ? const CircularProgressIndicator()
                         : SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _login,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              backgroundColor: Colors.blue.shade700,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _login,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                backgroundColor: Colors.blue.shade700,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                            ),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
+                              child: const Text(
+                                'Login',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
-                        ),
                   ],
                 ),
               ),
