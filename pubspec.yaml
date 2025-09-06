@@ -1,5 +1,5 @@
 name: tce_cab
-description: "A new Flutter project."
+description: "It is a vehicle booking application."
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
@@ -33,6 +33,9 @@ dependencies:
   printing: ^5.10.4
   url_launcher: ^6.2.4
   shared_preferences: ^2.5.3 # Or latest version
+  excel: ^2.1.0
+  share_plus: 11.1.0 # Make sure this is added
+
   
 
 

@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'splash_screen.dart';
+import 'driver_login_page.dart';
 
 // Initialize FlutterLocalNotificationsPlugin
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -244,9 +245,36 @@ class LoginPage extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Faculty Login',
+                    'Faculty/Staff Login',
                     style:
                         TextStyle(fontSize: 16, color: Colors.blue.shade700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 🚗 Driver Login
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DriverLoginPage(),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.green.shade700, width: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Driver Login',
+                    style: TextStyle(fontSize: 16, color: Colors.green.shade700),
                   ),
                 ),
               ),

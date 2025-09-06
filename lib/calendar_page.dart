@@ -25,31 +25,57 @@ class _CalendarPageState extends State<CalendarPage> {
 
     for (var doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
+      final tripType = data['tripType'] as String? ?? '';
 
+      // Process pickup leg for both Single Trip and Round Trip
       final pickupDateStr = data['pickupDate'] as String? ?? '';
-      final parts = pickupDateStr.split('/');
-      if (parts.length != 3) continue;
+      final pickupParts = pickupDateStr.split('/');
+      if (pickupParts.length == 3) {
+        final day = int.tryParse(pickupParts[0]);
+        final month = int.tryParse(pickupParts[1]);
+        final year = int.tryParse(pickupParts[2]);
 
-      final day = int.tryParse(parts[0]);
-      final month = int.tryParse(parts[1]);
-      final year = int.tryParse(parts[2]);
+        if (day != null && month != null && year != null) {
+          final eventDate = DateTime(year, month, day);
+          final eventInfo = <String, String>{
+            'eventName': data['eventName'] ?? '',
+            'facility': data['facility'] ?? '',
+            'pickupLocation': data['pickupFrom'] ?? '',
+            'dropLocation': data['pickupTo'] ?? '',
+            'pickupTime': data['pickupTime'] ?? '',
+            'numberOfPersons': data['numberOfPersons'] ?? '',
+            'status': data['pickup_status'] ?? '',
+            'tripType': tripType,
+          };
+          newEvents[eventDate] = (newEvents[eventDate] ?? [])..add(eventInfo);
+        }
+      }
 
-      if (day == null || month == null || year == null) continue;
+      // Process drop leg for Round Trip only
+      if (tripType.toLowerCase() == 'round trip') {
+        final dropDateStr = data['dropDate'] as String? ?? '';
+        final dropParts = dropDateStr.split('/');
+        if (dropParts.length == 3) {
+          final day = int.tryParse(dropParts[0]);
+          final month = int.tryParse(dropParts[1]);
+          final year = int.tryParse(dropParts[2]);
 
-      final eventDate = DateTime(year, month, day);
-
-      final eventInfo = <String, String>{
-        'eventName': data['eventName'] ?? '',
-        'facility': data['facility'] ?? '',
-        'pickupLocation': data['pickupLocation'] ?? '',
-        'dropLocation': data['dropLocation'] ?? '',
-        'pickupTime': data['pickupTime'] ?? '',
-        'dropTime': data['dropTime'] ?? '',
-        'numberOfPersons': data['numberOfPersons'] ?? '',
-        'status': data['status'] ?? '',
-      };
-
-      newEvents[eventDate] = (newEvents[eventDate] ?? [])..add(eventInfo);
+          if (day != null && month != null && year != null) {
+            final eventDate = DateTime(year, month, day);
+            final eventInfo = <String, String>{
+              'eventName': data['eventName'] ?? '',
+              'facility': data['facility'] ?? '',
+              'pickupLocation': data['dropFrom'] ?? '',
+              'dropLocation': data['dropTo'] ?? '',
+              'pickupTime': data['dropTime'] ?? '',
+              'numberOfPersons': data['numberOfPersons'] ?? '',
+              'status': data['drop_status'] ?? '',
+              'tripType': tripType,
+            };
+            newEvents[eventDate] = (newEvents[eventDate] ?? [])..add(eventInfo);
+          }
+        }
+      }
     }
 
     // Compare maps before calling setState
@@ -75,9 +101,8 @@ class _CalendarPageState extends State<CalendarPage> {
       backgroundColor: Colors.blue.shade50,
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('bookings')
-            .orderBy('pickupDate')
-            .snapshots(),
+            .collection('new_bookings')
+            .snapshots(), // Fetch from new_bookings
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -189,6 +214,7 @@ class _CalendarPageState extends State<CalendarPage> {
       itemBuilder: (_, index) {
         final ev = events[index];
         final status = ev['status'] ?? '';
+        final tripType = ev['tripType'] ?? '';
 
         Color statusColor = Colors.green.shade700;
         if (status.toLowerCase() == 'pending') {
@@ -216,9 +242,10 @@ class _CalendarPageState extends State<CalendarPage> {
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
+                'Trip Type: ${tripType.capitalize()}\n'
                 'Facility: ${ev['facility']}\n'
                 'From: ${ev['pickupLocation']} at ${ev['pickupTime']}\n'
-                'To: ${ev['dropLocation']} at ${ev['dropTime']}\n'
+                'To: ${ev['dropLocation']}\n'
                 'Persons: ${ev['numberOfPersons']}',
                 style: GoogleFonts.poppins(color: Colors.blue.shade800, fontSize: 13, height: 1.3),
               ),
@@ -237,4 +264,9 @@ class _CalendarPageState extends State<CalendarPage> {
       },
     );
   }
+}
+
+extension StringCasingExtension on String {
+  String capitalize() =>
+      isEmpty ? '' : '${this[0].toUpperCase()}${substring(1).toLowerCase()}';
 }

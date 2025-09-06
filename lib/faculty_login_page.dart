@@ -37,7 +37,7 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
 
       if (!doc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No faculty found for that email')),
+          const SnackBar(content: Text('No faculty/staff found for that email')),
         );
         return;
       }
@@ -77,7 +77,7 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
     return Scaffold(
       backgroundColor: Colors.blue.shade50,
       appBar: AppBar(
-        title: const Text('Faculty Login'),
+        title: const Text('Login'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -96,7 +96,7 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
                   const SizedBox(height: 24),
 
                   Text(
-                    'Faculty Login',
+                    'Faculty/Staff Login',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Colors.blue.shade800,

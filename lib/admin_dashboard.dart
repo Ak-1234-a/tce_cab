@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'manage_requests_page.dart';
 import 'view_history_page.dart';
-import 'drivers_page.dart'; // <-- Import the Drivers Page
-import 'report_schedule_page.dart';
+import 'drivers_page.dart';
 import 'vehicles_page.dart';
 import 'manager_login_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'view_running_trips.dart';
+import 'calendar_page.dart'; 
+import 'GenerateExcelPage.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -28,7 +30,7 @@ class AdminDashboardPage extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'Admin Dashboard',
+                'Dashboard',
                 style: GoogleFonts.roboto(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -51,7 +53,8 @@ class AdminDashboardPage extends StatelessWidget {
         ),
         drawer: Drawer(
           backgroundColor: Colors.white,
-          child: Column(
+          child: ListView( // Use ListView for scrollability
+            padding: EdgeInsets.zero,
             children: [
               DrawerHeader(
                 decoration: BoxDecoration(
@@ -67,7 +70,7 @@ class AdminDashboardPage extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        'Admin Menu',
+                        'Menu',
                         style: GoogleFonts.roboto(
                           fontSize: 22,
                           color: Colors.white,
@@ -79,10 +82,23 @@ class AdminDashboardPage extends StatelessWidget {
                 ),
               ),
               _buildDrawerItem(
+                icon: Icons.calendar_month,
+                label: 'Event Calendar',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CalendarPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildDrawerItem(
                 icon: Icons.history,
                 label: 'View History',
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -92,10 +108,23 @@ class AdminDashboardPage extends StatelessWidget {
                 },
               ),
               _buildDrawerItem(
+                icon: Icons.run_circle,
+                label: 'View Running Trips',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ViewRunningTripsPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildDrawerItem(
                 icon: Icons.directions_car,
                 label: 'Drivers',
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -108,13 +137,13 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.directions_bus,
                 label: 'Vehicles',
                 onTap: () {
-                   Navigator.pop(context); // Close drawer
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const VehiclesPage(),
-      ),
-    );
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const VehiclesPage(),
+                    ),
+                  );
                 },
               ),
               _buildDrawerItem(
@@ -125,7 +154,7 @@ class AdminDashboardPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ReportSchedulePage(),
+                      builder: (context) => GenerateExcelPage(), // Change 'ReportSchedulePage' to the correct class name if needed, e.g., 'ReportSchedule' or 'ReportPage'
                     ),
                   );
                 },
@@ -135,24 +164,20 @@ class AdminDashboardPage extends StatelessWidget {
                 icon: Icons.logout,
                 label: 'Logout',
                 onTap: () async {
-  Navigator.pop(context); // Close the drawer
-
-  // Clear login flag
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('loggedIn'); // or prefs.clear();
-
-  // Navigate to login page and remove all previous routes
-  Navigator.pushAndRemoveUntil(
-    context,
-    MaterialPageRoute(builder: (_) => const ManagerLoginPage()),
-    (route) => false,
-  );
-},
+                  Navigator.pop(context);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('loggedIn');
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ManagerLoginPage()),
+                    (route) => false,
+                  );
+                },
               ),
             ],
           ),
         ),
-        body: TabBarView(
+        body: const TabBarView(
           children: [
             ManageRequestsPage(),
           ],

@@ -38,11 +38,13 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
               .get();
 
       if (doc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account already exists for this email.'),
-          ),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account already exists for this email.'),
+            ),
+          );
+        }
         return;
       }
 
@@ -51,17 +53,20 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
           .doc(email)
           .set({'name': name, 'email': email, 'password': password,'phone': _phoneController.text.trim()});
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Registration successful!')));
-
-      Navigator.pop(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Registration successful!')));
+        Navigator.pop(context);
+      }
     } catch (e, stackTrace) {
       debugPrint('❌ Firestore error: $e');
       debugPrintStack(stackTrace: stackTrace);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -118,7 +123,7 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
     return Scaffold(
       backgroundColor: Colors.blue.shade50,
       appBar: AppBar(
-        title: const Text('Faculty Registration'),
+        title: const Text('Registration'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -136,7 +141,7 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Register Faculty',
+                    'Register Faculty/Staff',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Colors.blue.shade800,
@@ -163,9 +168,11 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Enter email';
-                      if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
-                        return 'Enter a valid email';
+                      if (value == null || value.isEmpty) {
+                        return 'Enter email';
+                      }
+                      if (!value.endsWith('@tce.edu')) {
+                        return 'You are not a staff/faculty of Thiagarajar College of Engineering.';
                       }
                       return null;
                     },
@@ -240,15 +247,15 @@ class _FacultyRegisterPageState extends State<FacultyRegisterPage> {
                       child:
                           _isLoading
                               ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                              : const Text(
-                                'Register',
-                                style: TextStyle(
-                                  fontSize: 16,
                                   color: Colors.white,
+                                )
+                              : const Text(
+                                  'Register',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
                     ),
                   ),
                 ],

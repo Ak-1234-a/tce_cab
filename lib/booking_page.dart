@@ -23,6 +23,7 @@ class _BookingPageState extends State<BookingPage> {
   final _dropFromController = TextEditingController();
   final _dropToController = TextEditingController();
   final _numberOfPersonsController = TextEditingController();
+  final _otherDepartmentController = TextEditingController(); // New controller for 'Others'
 
   String? _selectedFacility;
   String? _selectedTripType;
@@ -33,6 +34,8 @@ class _BookingPageState extends State<BookingPage> {
   DateTime? _dropDate;
   TimeOfDay? _dropTime;
 
+  bool _isLoading = false; // New state variable for loading
+
   final List<String> _departments = [
     'Information Technology',
     'Computer Science and Engineering',
@@ -42,19 +45,18 @@ class _BookingPageState extends State<BookingPage> {
     'TSEDA',
     'Civil',
     'Applied Mathematics and Computational Science',
-    'Maths',
     'Physics',
     'Chemistry',
-    'Mathematics',
     'Electronics and communication Engineering',
     'Electrical and Electronics Engineering',
     'English',
     'Computer Applications',
+    'Others', // Added 'Others'
   ];
 
   String get _facultyName {
     final parts = widget.facultyEmail.split('@').first.split('.');
-    return parts.map((p) => p.capitalize()).join(' ');
+    return parts.map((p) => StringCasingExtension(p).capitalize()).join(' ');
   }
 
   @override
@@ -66,6 +68,7 @@ class _BookingPageState extends State<BookingPage> {
     _dropFromController.dispose();
     _dropToController.dispose();
     _numberOfPersonsController.dispose();
+    _otherDepartmentController.dispose(); // Dispose the new controller
     super.dispose();
   }
 
@@ -108,6 +111,7 @@ class _BookingPageState extends State<BookingPage> {
   String _formatTime(TimeOfDay? t) => t != null ? t.format(context) : '';
 
   Future<void> _submitBooking() async {
+    // Basic validation for common fields
     if (_selectedFacility == null ||
         _eventNameController.text.isEmpty ||
         _resourcePersonController.text.isEmpty ||
@@ -117,8 +121,9 @@ class _BookingPageState extends State<BookingPage> {
         _pickupFromController.text.isEmpty ||
         _pickupToController.text.isEmpty ||
         _pickupDate == null ||
-        _pickupTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+        _pickupTime == null ||
+        (_selectedDepartment == 'Others' && _otherDepartmentController.text.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all required fields')));
       return;
     }
 
@@ -144,6 +149,7 @@ class _BookingPageState extends State<BookingPage> {
       _pickupTime!.minute,
     );
 
+    // Validation for Round Trip
     if (_selectedTripType == 'Round Trip') {
       if (_dropDate == null ||
           _dropTime == null ||
@@ -171,38 +177,48 @@ class _BookingPageState extends State<BookingPage> {
       }
     }
 
-    final data = {
-      'facultyEmail': widget.facultyEmail,
-      'eventName': _eventNameController.text,
-      'resourcePerson': _resourcePersonController.text,
-      'forwardThrough': 'Manager',
-      'facility': _selectedFacility,
-      'tripType': _selectedTripType,
-      'numberOfPersons': _numberOfPersonsController.text,
-      'pickupFrom': _pickupFromController.text,
-      'pickupTo': _pickupToController.text,
-      'pickupDate': _formatDate(_pickupDate),
-      'pickupTime': _formatTime(_pickupTime),
-      'status': 'Pending',
-      'timestamp': FieldValue.serverTimestamp(),
-    };
-    
-    // Conditionally add drop details for Round Trip
-    if (_selectedTripType == 'Round Trip') {
-      data.addAll({
-        'dropFrom': _dropFromController.text,
-        'dropTo': _dropToController.text,
-        'dropDate': _formatDate(_dropDate),
-        'dropTime': _formatTime(_dropTime),
-      });
-    }
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
+      final data = {
+        'facultyEmail': widget.facultyEmail,
+        'eventName': _eventNameController.text,
+        'resourcePerson': _resourcePersonController.text,
+        'forwardThrough': 'Manager',
+        'facility': _selectedFacility,
+        'tripType': _selectedTripType,
+        'numberOfPersons': _numberOfPersonsController.text,
+        'department': _selectedDepartment == 'Others' ? _otherDepartmentController.text : _selectedDepartment,
+        'pickupFrom': _pickupFromController.text,
+        'pickupTo': _pickupToController.text,
+        'pickupDate': _formatDate(_pickupDate),
+        'pickupTime': _formatTime(_pickupTime),
+        'pickup_status': 'Pending',
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      // Conditionally add drop details and status for Round Trip
+      if (_selectedTripType == 'Round Trip') {
+        data.addAll({
+          'dropFrom': _dropFromController.text,
+          'dropTo': _dropToController.text,
+          'dropDate': _formatDate(_dropDate),
+          'dropTime': _formatTime(_dropTime),
+          'drop_status': 'Pending',
+        });
+      }
+
       await FirebaseFirestore.instance.collection('new_bookings').add(data);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking submitted successfully')));
       _clearForm();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -214,6 +230,7 @@ class _BookingPageState extends State<BookingPage> {
     _dropFromController.clear();
     _dropToController.clear();
     _numberOfPersonsController.clear();
+    _otherDepartmentController.clear(); // Clear the new controller
     setState(() {
       _selectedFacility = null;
       _selectedTripType = null;
@@ -328,6 +345,8 @@ class _BookingPageState extends State<BookingPage> {
                 items: _departments,
                 onChanged: (v) => setState(() => _selectedDepartment = v),
               ),
+              if (_selectedDepartment == 'Others')
+                _buildTextField(_otherDepartmentController, 'Other Department', Icons.edit),
             ]),
             const SizedBox(height: 20),
             _buildCard('Pickup Booking', [
@@ -349,8 +368,10 @@ class _BookingPageState extends State<BookingPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.send, color: Colors.white),
-                label: Padding(
+                icon: _isLoading ? const SizedBox.shrink() : const Icon(Icons.send, color: Colors.white),
+                label: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   child: Text(
                     'Submit Booking',
@@ -367,7 +388,7 @@ class _BookingPageState extends State<BookingPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: _submitBooking,
+                onPressed: _isLoading ? null : _submitBooking,
               ),
             ),
           ],
@@ -377,72 +398,72 @@ class _BookingPageState extends State<BookingPage> {
   }
 
   Drawer _buildDrawer() => Drawer(
-        child: ListView(
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue.shade800),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 30,
-                    backgroundImage: AssetImage('assets/TCE.png'),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    _facultyName,
-                    style: GoogleFonts.openSans(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+    child: ListView(
+      children: [
+        DrawerHeader(
+          decoration: BoxDecoration(color: Colors.blue.shade800),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 30,
+                backgroundImage: AssetImage('assets/TCE.png'),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.list),
-              title: const Text('My Bookings'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ViewBookingsPage(email: widget.facultyEmail),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Calendar'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => CalendarPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () async {
-                Navigator.pop(context);
-
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove('isFacultyLoggedIn');
-                await prefs.remove('facultyEmail');
-
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FacultyLoginPage()),
-                  (route) => false,
-                );
-              },
-            ),
-          ],
+              const SizedBox(width: 12),
+              Text(
+                _facultyName,
+                style: GoogleFonts.openSans(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+        ListTile(
+          leading: const Icon(Icons.list),
+          title: const Text('My Bookings'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ViewBookingsPage(email: widget.facultyEmail),
+              ),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.calendar_today),
+          title: const Text('Calendar'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => CalendarPage()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.logout),
+          title: const Text('Logout'),
+          onTap: () async {
+            Navigator.pop(context);
+
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('isFacultyLoggedIn');
+            await prefs.remove('facultyEmail');
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const FacultyLoginPage()),
+                  (route) => false,
+            );
+          },
+        ),
+      ],
+    ),
+  );
 
   Widget _buildCard(String title, List<Widget> fields) {
     return Card(
@@ -463,7 +484,7 @@ class _BookingPageState extends State<BookingPage> {
             ),
             const SizedBox(height: 16),
             ...fields.map(
-              (w) => Padding(
+                  (w) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: w,
               ),
@@ -496,7 +517,7 @@ class _BookingPageState extends State<BookingPage> {
             _buildSummaryRow('Trip Type', _selectedTripType),
             _buildSummaryRow('Event Name', _eventNameController.text),
             _buildSummaryRow('Resource Person', _resourcePersonController.text),
-            _buildSummaryRow('Department', _selectedDepartment),
+            _buildSummaryRow('Department', _selectedDepartment == 'Others' ? _otherDepartmentController.text : _selectedDepartment),
             _buildSummaryRow('No. of Persons', _numberOfPersonsController.text),
             const Divider(),
             _buildSummaryRow('Pickup From', _pickupFromController.text),
@@ -525,16 +546,23 @@ class _BookingPageState extends State<BookingPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.openSans(
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade900,
+          Flexible(
+            child: Text(
+              label,
+              style: GoogleFonts.openSans(
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade900,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text(
-            value,
-            style: GoogleFonts.openSans(color: Colors.black87),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              value,
+              style: GoogleFonts.openSans(color: Colors.black87),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -582,10 +610,13 @@ class _BookingPageState extends State<BookingPage> {
         items: items
             .map(
               (e) => DropdownMenuItem(
-                value: e,
-                child: Text(e, style: GoogleFonts.openSans()),
-              ),
-            )
+            value: e,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(e, style: GoogleFonts.openSans()),
+            ),
+          ),
+        )
             .toList(),
         onChanged: onChanged,
         style: GoogleFonts.openSans(color: Colors.black),

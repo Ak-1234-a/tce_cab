@@ -206,7 +206,7 @@ class _ManagerLoginPageState extends State<ManagerLoginPage> {
       return;
     }
 
-    await _firestore.collection('managers').doc('manager').set({
+    await _firestore.collection('new_managers').doc('manager').set({
       'fcmToken': token,
       'loginTime': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
