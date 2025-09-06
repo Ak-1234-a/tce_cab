@@ -155,12 +155,39 @@ class _GenerateExcelPageState extends State<GenerateExcelPage> {
         subject: 'Monthly Trip Report',
         text: 'Please find the attached monthly trip report.',
       );
+      // If the share dialog is successfully dismissed, proceed with deletion.
+      await _deleteAllBookings();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to share file: ${e.toString()}')),
         );
       }
+    }
+  }
+
+  Future<void> _deleteAllBookings() async {
+    setState(() {
+      _statusMessage = 'Deleting previous month\'s data...';
+    });
+
+    final collectionRef = FirebaseFirestore.instance.collection('new_bookings');
+    final batch = FirebaseFirestore.instance.batch();
+
+    try {
+      final snapshot = await collectionRef.get();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      setState(() {
+        _statusMessage = 'Report shared and old data deleted successfully!';
+      });
+    } catch (e) {
+      debugPrint("Error deleting collection: $e");
+      setState(() {
+        _statusMessage = 'Error: Failed to delete old data. ${e.toString()}';
+      });
     }
   }
 

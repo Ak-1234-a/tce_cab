@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:collection/collection.dart'; // For deep equality
+import 'package:intl/intl.dart';
 
 import 'driver_login_page.dart';
 
@@ -329,7 +330,7 @@ class _BookingCardState extends State<BookingCard> {
     final vehicleId = booking['vehicleId'];
     final driverPhone = booking['driverPhone'];
     final bookingId = booking['bookingId'];
-    const managerPhone = '9489229563';
+    const managerPhone = '7200306251';
 
     if (driverDocId == null ||
         vehicleId == null ||
@@ -386,13 +387,19 @@ To : ${booking["pickupTo"] ?? booking["dropTo"] ?? 'N/A'}
 📱 Driver: $driverPhone
 ''';
 
-      final url = Uri.parse(
-          "https://wa.me/$managerPhone?text=${Uri.encodeComponent(message)}");
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+      
+      try {
+      final encodedMessage = Uri.encodeComponent(message);
+      final intentUrl = Uri.parse("intent://send?phone=$managerPhone&text=$encodedMessage#Intent;scheme=smsto;package=com.whatsapp;end");
+      if (await canLaunchUrl(intentUrl)) {
+        await launchUrl(intentUrl, mode: LaunchMode.externalApplication);
       } else {
-        throw 'Could not launch WhatsApp';
+        final webUrl = Uri.parse("https://wa.me/$managerPhone?text=$encodedMessage");
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       }
+    } catch (e) {
+      // Handle exceptions
+    }
 
       setState(() {
         _isCompleted = true;

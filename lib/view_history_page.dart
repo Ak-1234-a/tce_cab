@@ -18,23 +18,19 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
   final _firestore = FirebaseFirestore.instance;
   String _selectedFilter = 'all';
 
-  // Strict usage of provided email and WhatsApp logic
   static Future<void> _launchWhatsApp(String phoneNumber, String message) async {
     try {
       final encodedMessage = Uri.encodeComponent(message);
 
-      // Use the wa.me web link as the primary, most reliable method
       final webUrl = Uri.parse("https://wa.me/$phoneNumber?text=$encodedMessage");
 
       if (await canLaunchUrl(webUrl)) {
         await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       } else {
-        // Fallback to the intent URL for Android, if the web link fails
         final intentUrl = Uri.parse("intent://send?phone=$phoneNumber&text=$encodedMessage#Intent;scheme=smsto;package=com.whatsapp;end");
         if (await canLaunchUrl(intentUrl)) {
           await launchUrl(intentUrl, mode: LaunchMode.externalApplication);
         } else {
-          // Handle case where no method works
           debugPrint('Could not launch WhatsApp on this platform.');
         }
       }
@@ -58,7 +54,6 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
           'body': body,
         }),
       );
-      // Debug prints to check the response from the API
       debugPrint('Email API Response Status Code: ${response.statusCode}');
       debugPrint('Email API Response Body: ${response.body}');
       return response.statusCode == 200;
@@ -132,14 +127,17 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
       final pickupTripStatus = (data['pickupTripStatus'] ?? '').toLowerCase();
       final dropTripStatus = (data['dropTripStatus'] ?? '').toLowerCase();
       final selectedFilterLower = _selectedFilter.toLowerCase();
+      
+      final currentPickupStatus = _getStatus(data, 'pickup').toLowerCase();
+      final currentDropStatus = _getStatus(data, 'drop').toLowerCase();
 
-      // The 'all' filter shows any booking that is not in a 'pending' status for both pickup and drop.
+      // The 'all' filter shows any booking that is not in a 'pending' status.
       if (selectedFilterLower == 'all') {
-        return (pickupStatus != 'pending' && pickupStatus.isNotEmpty) || (dropStatus != 'pending' && dropStatus.isNotEmpty) || (pickupTripStatus != 'pending' && pickupTripStatus.isNotEmpty) || (dropTripStatus != 'pending' && dropTripStatus.isNotEmpty);
+        return (pickupStatus != 'pending' && pickupStatus.isNotEmpty) || (dropStatus != 'pending' && dropStatus.isNotEmpty);
       }
       
-      // All other filters check against both the main status fields and the new trip status fields.
-      return pickupStatus == selectedFilterLower || dropStatus == selectedFilterLower || pickupTripStatus == selectedFilterLower || dropTripStatus == selectedFilterLower;
+      // All other filters check against the determined current status for both trips.
+      return currentPickupStatus == selectedFilterLower || currentDropStatus == selectedFilterLower;
 
     }).toList();
   }
@@ -160,6 +158,10 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
         const PopupMenuItem<String>(
           value: 'accepted',
           child: Text('Accepted'),
+        ),
+        const PopupMenuItem<String>(
+          value: 'started',
+          child: Text('Started'),
         ),
         const PopupMenuItem<String>(
           value: 'rejected',
@@ -185,12 +187,10 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
     final String eventName = data['eventName'] ?? 'N/A';
     final String facultyEmail = data['facultyEmail'] ?? '';
     final String? driverId = data['${type}_driverId'];
-
-    // Moved driverPhone variable to be set after fetching from new_drivers
+    
     String driverPhone = '';
 
     try {
-      // Fetch driver phone number using driverId before transaction
       if (driverId != null && driverId.isNotEmpty) {
         final driverDoc = await _firestore.collection('new_drivers').doc(driverId).get();
         if (driverDoc.exists) {
@@ -205,7 +205,6 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
 
       await _firestore.runTransaction((transaction) async {
         try {
-          // Step 1: Perform all reads first.
           final bookingDoc = await transaction.get(docRef);
           if (!bookingDoc.exists) {
             throw Exception("Booking document does not exist.");
@@ -228,8 +227,6 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
               ? await transaction.get(_firestore.collection('new_drivers').doc(driverId))
               : null;
 
-
-          // Step 2: Perform all writes after all reads are complete.
 
           // Update the booking status in the new_bookings collection
           transaction.update(docRef, {statusField: 'cancelled'});
@@ -260,10 +257,9 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
         }
       });
 
-      // Send notifications outside the transaction
       if (facultyEmail.isNotEmpty) {
         final subject = 'Apology for Booking Cancellation';
-        final body = 'Dear Faculty,\n\nWe sincerely apologize, but your $type trip for the event "$eventName" has been cancelled due to unforeseen circumstances. We understand this may cause an inconvenience and we are sorry for that.\n\nThank you for your understanding.';
+        final body = 'Dear Faculty,\n\nWe sincerely apologize, but your $type trip for the event "$eventName" has been cancelled due to unforeseen circumstances. We are sorry for that.\n\nThank you for your understanding.';
         _sendEmailViaBackend(to: facultyEmail, subject: subject, body: body);
       }
       debugPrint('Faculty email sent to $facultyEmail');
@@ -290,18 +286,18 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
   }
 
   String _getStatus(Map<String, dynamic> data, String type) {
-    final tripStatusField = type == 'pickup' ? 'pickupTripStatus' : 'dropTripStatus'; // Correct field name
+    final tripStatusField = type == 'pickup' ? 'pickupTripStatus' : 'dropTripStatus';
     final generalStatusField = type == 'pickup' ? 'pickup_status' : 'drop_status';
 
-    // Check for the completed/started status first
-    if (data.containsKey(tripStatusField)) {
+    // Check for the completed/cancelled status first
+    if (data.containsKey(tripStatusField) && data[tripStatusField] != null && data[tripStatusField].isNotEmpty) {
       return data[tripStatusField] ?? 'N/A';
     }
 
-    // Check if the trip has started (only for pickup)
-    if (type == 'pickup') {
-      final pickupDateTimeString = '${data['pickupDate']} ${data['pickupTime']}';
-      if (_isTripStarted(pickupDateTimeString)) {
+    // Check if the trip has started
+    if ((data['tripType'] == 'Round Trip' || type == 'pickup') && data[generalStatusField] == 'accepted') {
+      final dateTimeString = '${data[type == 'pickup' ? 'pickupDate' : 'dropDate']} ${data[type == 'pickup' ? 'pickupTime' : 'dropTime']}';
+      if (_isTripStarted(dateTimeString)) {
         return 'Started';
       }
     }
@@ -328,7 +324,7 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
 
     // Pickup details
     final pickupDateTimeString = '${data['pickupDate']} ${data['pickupTime']}';
-    final pickupStatus = _getStatus(data, 'pickup'); // Using the new function to get status
+    final pickupStatus = _getStatus(data, 'pickup');
     final isPickupCancelable = _isFutureBooking(pickupDateTimeString) && pickupStatus == 'accepted';
 
     // Drop details
@@ -345,7 +341,6 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with trip type
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -357,7 +352,6 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
             ),
             const Divider(height: 20, thickness: 1),
 
-            // Pickup Details Section
             Text('Pickup Details', style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.bold)),
             _buildStatusBadge(pickupStatus),
             _infoRow(Icons.event, 'Event:', data['eventName']),
@@ -370,7 +364,6 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
             if (pickupStatus == 'rejected' && data['rejectionReason'] != null)
               _infoRow(Icons.info, 'Reason:', data['rejectionReason'], color: Colors.red),
 
-            // Drop Details Section (for round trips only)
             if (isRoundTrip) ...[
               const Divider(height: 20, thickness: 1),
               Text('Drop Details', style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -385,7 +378,6 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
 
             const SizedBox(height: 10),
 
-            // Footer with timestamp and Cancel buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -459,21 +451,21 @@ class _ViewHistoryPageState extends State<ViewHistoryPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Confirm Cancellation'),
+          title: const Text('Confirm Cancellation'),
           content: Text('Are you sure you want to cancel this $type trip?'),
           actions: <Widget>[
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('No'),
+              child: const Text('No'),
             ),
             TextButton(
               onPressed: () {
                 _cancelBooking(doc, type);
                 Navigator.of(context).pop();
               },
-              child: Text('Yes'),
+              child: const Text('Yes'),
             ),
           ],
         );

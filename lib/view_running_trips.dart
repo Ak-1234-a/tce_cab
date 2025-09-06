@@ -48,7 +48,7 @@ class _ViewRunningTripsPageState extends State<ViewRunningTripsPage> {
         if (tripType == 'pickup') {
           transaction.update(bookingRef, {'pickupTripStatus': 'Completed'});
         } else if (tripType == 'drop') {
-          // The image shows 'dropTipStatus' so that's what's used here.
+          // The image shows 'dropTripStatus' so that's what's used here.
           transaction.update(bookingRef, {'dropTripStatus': 'Completed'});
         }
       });
@@ -107,7 +107,7 @@ class _ViewRunningTripsPageState extends State<ViewRunningTripsPage> {
           final runningTrips = snapshot.data!.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final pickupStatus = data['pickupTripStatus'] ?? '';
-            final dropStatus = data['dropTipStatus'] ?? '';
+            final dropStatus = data['dropTripStatus'] ?? '';
             final isPickupAccepted = data['pickup_status'] == 'accepted';
             final isDropAccepted = data['drop_status'] == 'accepted';
 
@@ -146,7 +146,7 @@ class _ViewRunningTripsPageState extends State<ViewRunningTripsPage> {
 
               // Determine which trip (pickup or drop) is currently running
               final isPickupRunning = (data['pickup_status'] == 'accepted') && (data['pickupTripStatus'] != 'Completed' || data['pickupTripStatus'] == null) && _isTripStarted(data['pickupDate'], data['pickupTime']);
-              final isDropRunning = (data['tripType'] == 'Round Trip') && (data['drop_status'] == 'accepted') && (data['dropTipStatus'] != 'Completed' || data['dropTipStatus'] == null) && _isTripStarted(data['dropDate'], data['dropTime']);
+              final isDropRunning = (data['tripType'] == 'Round Trip') && (data['drop_status'] == 'accepted') && (data['dropTripStatus'] != 'Completed' || data['dropTripStatus'] == null) && _isTripStarted(data['dropDate'], data['dropTime']);
 
               if (isPickupRunning) {
                 tripType = 'Pickup';
@@ -157,7 +157,7 @@ class _ViewRunningTripsPageState extends State<ViewRunningTripsPage> {
                 tripType = 'Drop';
                 driverId = dropDriverId ?? 'N/A';
                 vehicleId = dropVehicleId ?? 'N/A';
-                status = data['dropTipStatus'] ?? 'Started';
+                status = data['dropTripStatus'] ?? 'Started';
               }
               
               if (tripType == 'Unknown') {

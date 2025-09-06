@@ -15,7 +15,7 @@ class BookingActions {
 
     try {
       final newDateTime = dateFormat.parse('$newDate $newTime');
-      const assumedTripDuration = Duration(hours: 5); // Adjust this based on your typical trip length
+      const assumedTripDuration = Duration(hours: 1); // Adjust this based on your typical trip length
 
       for (var booking in bookings) {
         if (booking is Map<String, dynamic>) {
